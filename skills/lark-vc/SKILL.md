@@ -20,7 +20,7 @@ metadata:
 
 ## 身份
 
-所有 vc 命令默认使用 `--as user`。`+search` 和 `meeting get` 也支持 `--as bot`。
+所有 vc 命令默认使用 `--as user`。`meeting get`、`+detail`、`+recording`、`+notes` 也支持 `--as bot`（bot 只能访问 bot 有权限的会议、录制和纪要）。`+search` 仅支持 user。
 
 ```bash
 # BAD — 查昨天的会议用 calendar，会漏掉即时会议
