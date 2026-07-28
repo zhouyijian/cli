@@ -24,6 +24,7 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 			"whiteboard", "+node-update",
 			"--whiteboard-token", "wbcnUpdateDryRun",
 			"--source", `{"nodes":[{"id":"nodeA","type":"text","text":{"content":"hello A"}},{"id":"nodeB","type":"text","text":{"content":"hello B"}}]}`,
+			"--idempotent-token", "update-token-12345",
 			"--dry-run",
 		},
 		DefaultAs: "bot",
@@ -32,17 +33,17 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 	result.AssertExitCode(t, 0)
 
 	out := result.Stdout
-	require.Equal(t, int64(2), clie2e.DryRunGet(out, "api.#").Int(), out)
-	for i, nodeID := range []string{"nodeA", "nodeB"} {
-		require.Equal(t, "PUT", clie2e.DryRunGet(out, "api."+string(rune('0'+i))+".method").String(), out)
-		gotURL := clie2e.DryRunGet(out, "api."+string(rune('0'+i))+".url").String()
-		if !strings.HasPrefix(gotURL, "/open-apis/board/v1/whiteboards/") ||
-			!strings.HasSuffix(gotURL, "/nodes/"+nodeID) ||
-			strings.Contains(gotURL, "wbcnUpdateDryRun") {
-			t.Fatalf("url=%q, want masked board whiteboard node update URL ending with %s\nstdout:\n%s", gotURL, nodeID, out)
-		}
-		require.False(t, clie2e.DryRunGet(out, "api."+string(rune('0'+i))+".body.node.id").Exists(), out)
-		require.Equal(t, "text", clie2e.DryRunGet(out, "api."+string(rune('0'+i))+".body.node.type").String(), out)
-		require.Equal(t, "hello "+string(rune('A'+i)), clie2e.DryRunGet(out, "api."+string(rune('0'+i))+".body.node.text.content").String(), out)
+	require.Equal(t, int64(1), clie2e.DryRunGet(out, "api.#").Int(), out)
+	require.Equal(t, "PUT", clie2e.DryRunGet(out, "api.0.method").String(), out)
+	gotURL := clie2e.DryRunGet(out, "api.0.url").String()
+	if !strings.HasPrefix(gotURL, "/open-apis/board/v1/whiteboards/") ||
+		!strings.HasSuffix(gotURL, "/nodes/batch_update") ||
+		strings.Contains(gotURL, "wbcnUpdateDryRun") {
+		t.Fatalf("url=%q, want masked board whiteboard batch update URL\nstdout:\n%s", gotURL, out)
 	}
+	require.Equal(t, "update-token-12345", clie2e.DryRunGet(out, "api.0.params.client_token").String(), out)
+	require.Equal(t, "nodeA", clie2e.DryRunGet(out, "api.0.body.nodes.0.id").String(), out)
+	require.Equal(t, "hello A", clie2e.DryRunGet(out, "api.0.body.nodes.0.text.content").String(), out)
+	require.Equal(t, "nodeB", clie2e.DryRunGet(out, "api.0.body.nodes.1.id").String(), out)
+	require.Equal(t, "hello B", clie2e.DryRunGet(out, "api.0.body.nodes.1.text.content").String(), out)
 }
