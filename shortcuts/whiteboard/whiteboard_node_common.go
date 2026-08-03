@@ -4,16 +4,12 @@
 package whiteboard
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/larksuite/cli/errs"
-	"github.com/larksuite/cli/internal/client"
 	"github.com/larksuite/cli/shortcuts/common"
-	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 )
 
 type whiteboardNodeBatchPayload struct {
@@ -21,8 +17,17 @@ type whiteboardNodeBatchPayload struct {
 }
 
 func parseWhiteboardNodeBatchPayload(raw []byte, requireID bool) (whiteboardNodeBatchPayload, error) {
+	var document json.RawMessage
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return whiteboardNodeBatchPayload{}, errs.NewValidationError(errs.SubtypeInvalidArgument, "unmarshal input json failed: %v", err).
+			WithParam("--source").
+			WithCause(err)
+	}
+
 	var payload whiteboardNodeBatchPayload
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.UseNumber()
+	if err := decoder.Decode(&payload); err != nil {
 		return whiteboardNodeBatchPayload{}, errs.NewValidationError(errs.SubtypeInvalidArgument, "unmarshal input json failed: %v", err).
 			WithParam("--source").
 			WithCause(err)
@@ -77,69 +82,4 @@ func validateOptionalWhiteboardNodeIdempotentToken(raw string) error {
 			WithParam("--idempotent-token")
 	}
 	return nil
-}
-
-func callWhiteboardNodeWrite(ctx context.Context, runtime *common.RuntimeContext, method, apiPath string, params map[string]interface{}, body interface{}) (map[string]interface{}, error) {
-	req := &larkcore.ApiReq{
-		HttpMethod:  method,
-		ApiPath:     apiPath,
-		Body:        body,
-		QueryParams: whiteboardNodeQueryParams(params),
-	}
-	resp, err := runtime.DoAPI(req)
-	if err != nil {
-		return nil, err
-	}
-	data, classifyErr := runtime.ClassifyAPIResponse(resp)
-	if classifyErr == nil {
-		return data, nil
-	}
-	if resp.StatusCode >= http.StatusBadRequest {
-		return data, classifyErr
-	}
-	if isWhiteboardNodeNonObjectSuccess(classifyErr, resp) {
-		return nil, nil
-	}
-	return data, classifyErr
-}
-
-func whiteboardNodeQueryParams(params map[string]interface{}) larkcore.QueryParams {
-	query := make(larkcore.QueryParams)
-	for key, value := range params {
-		switch typed := value.(type) {
-		case []string:
-			for _, item := range typed {
-				query.Add(key, item)
-			}
-		case []interface{}:
-			for _, item := range typed {
-				query.Add(key, whiteboardNodeQueryValue(item))
-			}
-		default:
-			query.Set(key, whiteboardNodeQueryValue(value))
-		}
-	}
-	return query
-}
-
-func whiteboardNodeQueryValue(value interface{}) string {
-	if value == nil {
-		return ""
-	}
-	return strings.TrimSpace(fmt.Sprint(value))
-}
-
-func isWhiteboardNodeNonObjectSuccess(err error, resp *larkcore.ApiResp) bool {
-	if resp == nil {
-		return false
-	}
-	if _, ok := errs.ProblemOf(err); !ok {
-		return false
-	}
-	result, parseErr := client.ParseJSONResponse(resp)
-	if parseErr != nil {
-		return false
-	}
-	_, isObject := result.(map[string]interface{})
-	return !isObject
 }

@@ -103,8 +103,11 @@ func whiteboardNodeBatchUpdateBody(payload whiteboardNodeBatchPayload) map[strin
 func whiteboardNodeUpdateIDs(data map[string]interface{}) ([]string, error) {
 	switch raw := data["ids"].(type) {
 	case nil:
-		return nil, nil
+		return nil, wbInvalidResponse("update whiteboard nodes failed: data.ids must be a non-empty array of strings")
 	case []interface{}:
+		if len(raw) == 0 {
+			return nil, wbInvalidResponse("update whiteboard nodes failed: data.ids must be a non-empty array of strings")
+		}
 		out := make([]string, 0, len(raw))
 		for i, value := range raw {
 			id, ok := value.(string)
@@ -115,6 +118,9 @@ func whiteboardNodeUpdateIDs(data map[string]interface{}) ([]string, error) {
 		}
 		return out, nil
 	case []string:
+		if len(raw) == 0 {
+			return nil, wbInvalidResponse("update whiteboard nodes failed: data.ids must be a non-empty array of strings")
+		}
 		return append([]string(nil), raw...), nil
 	default:
 		return nil, wbInvalidResponse("update whiteboard nodes failed: data.ids must be an array of strings")

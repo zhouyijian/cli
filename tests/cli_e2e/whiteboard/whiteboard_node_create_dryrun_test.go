@@ -24,6 +24,7 @@ func TestWhiteboardNodeCreateDryRun_RequestShape(t *testing.T) {
 			"whiteboard", "+node-create",
 			"--whiteboard-token", "wbcnCreateDryRun",
 			"--source", `{"nodes":[{"id":"tmpNode","type":"composite_shape","x":0,"y":0,"width":260,"height":45,"text":{"text":"hello","font_weight":"regular","font_size":14,"horizontal_align":"center","vertical_align":"mid"},"style":{"border_color":"#3370ff","border_width":"narrow","border_style":"solid","fill_color":"#e8f3ff"},"composite_shape":{"type":"round_rect"}}]}`,
+			"--idempotent-token", "create-token-12345",
 			"--dry-run",
 		},
 		DefaultAs: "bot",
@@ -38,6 +39,7 @@ func TestWhiteboardNodeCreateDryRun_RequestShape(t *testing.T) {
 	if !strings.HasPrefix(gotURL, "/open-apis/board/v1/whiteboards/") || !strings.HasSuffix(gotURL, "/nodes") || strings.Contains(gotURL, "wbcnCreateDryRun") {
 		t.Fatalf("url=%q, want masked board whiteboard nodes URL\nstdout:\n%s", gotURL, out)
 	}
+	require.Equal(t, "create-token-12345", clie2e.DryRunGet(out, "api.0.params.client_token").String(), out)
 	require.Equal(t, "composite_shape", clie2e.DryRunGet(out, "api.0.body.nodes.0.type").String(), out)
 	require.Equal(t, "round_rect", clie2e.DryRunGet(out, "api.0.body.nodes.0.composite_shape.type").String(), out)
 }

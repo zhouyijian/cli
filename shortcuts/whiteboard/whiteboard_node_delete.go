@@ -53,15 +53,13 @@ func wbNodeDeleteDryRun(_ context.Context, runtime *common.RuntimeContext) *comm
 	return dry
 }
 
-func wbNodeDeleteExecute(ctx context.Context, runtime *common.RuntimeContext) error {
+func wbNodeDeleteExecute(_ context.Context, runtime *common.RuntimeContext) error {
 	ids, err := parseWhiteboardNodeIDs(runtime.Str("node-ids"))
 	if err != nil {
 		return err
 	}
 
-	if _, err := callWhiteboardNodeWrite(
-		ctx,
-		runtime,
+	if _, err := runtime.CallAPITyped(
 		http.MethodDelete,
 		wbNodeDeleteURL(runtime.Str("whiteboard-token")),
 		wbNodeDeleteParams(runtime),

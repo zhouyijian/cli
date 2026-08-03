@@ -6,9 +6,12 @@ package whiteboard
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/larksuite/cli/errs"
 	"github.com/larksuite/cli/internal/httpmock"
 )
 
@@ -114,5 +117,55 @@ func TestWhiteboardNodeDeleteExecute_PostsIDs(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"ids": "nodeA,nodeB"`) {
 		t.Fatalf("stdout=%s, want ids nodeA,nodeB", stdout.String())
+	}
+}
+
+func TestWhiteboardNodeDeleteExecute_RejectsNonObjectSuccessResponse(t *testing.T) {
+	factory, stdout, reg := newUpdateExecuteFactory(t)
+
+	reg.Register(&httpmock.Stub{
+		Method:  "DELETE",
+		URL:     "/open-apis/board/v1/whiteboards/test-board/nodes/batch_delete",
+		RawBody: []byte("[]"),
+	})
+
+	args := []string{"+node-delete", "--whiteboard-token", "test-board", "--node-ids", "nodeA"}
+	err := runUpdateShortcut(t, WhiteboardNodeDelete, args, factory, stdout)
+	var internalErr *errs.InternalError
+	if !errors.As(err, &internalErr) {
+		t.Fatalf("error type = %T, want *errs.InternalError", err)
+	}
+	if internalErr.Subtype != errs.SubtypeInvalidResponse {
+		t.Fatalf("Subtype = %q, want %q", internalErr.Subtype, errs.SubtypeInvalidResponse)
+	}
+	if strings.Contains(stdout.String(), "success") {
+		t.Fatalf("stdout=%s, must not report success", stdout.String())
+	}
+}
+
+func TestWhiteboardNodeDeleteExecute_PreservesIdempotentToken(t *testing.T) {
+	factory, stdout, reg := newUpdateExecuteFactory(t)
+
+	const token = "         x"
+	var capturedToken string
+	reg.Register(&httpmock.Stub{
+		Method: "DELETE",
+		URL:    "/open-apis/board/v1/whiteboards/test-board/nodes/batch_delete",
+		Body: map[string]interface{}{
+			"code": 0,
+			"msg":  "success",
+			"data": map[string]interface{}{},
+		},
+		OnMatch: func(req *http.Request) {
+			capturedToken = req.URL.Query().Get("client_token")
+		},
+	})
+
+	args := []string{"+node-delete", "--whiteboard-token", "test-board", "--node-ids", "nodeA", "--idempotent-token", token}
+	if err := runUpdateShortcut(t, WhiteboardNodeDelete, args, factory, stdout); err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if capturedToken != token {
+		t.Fatalf("client_token = %q, want %q", capturedToken, token)
 	}
 }

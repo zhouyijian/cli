@@ -122,7 +122,7 @@ func TestWhiteboardNodeCreateExecute_PostsNodes(t *testing.T) {
 	}
 }
 
-func TestWhiteboardNodeCreateExecute_AllowsMissingIDs(t *testing.T) {
+func TestWhiteboardNodeCreateExecute_RejectsMissingIDs(t *testing.T) {
 	factory, stdout, reg := newUpdateExecuteFactory(t)
 
 	reg.Register(&httpmock.Stub{
@@ -137,8 +137,29 @@ func TestWhiteboardNodeCreateExecute_AllowsMissingIDs(t *testing.T) {
 
 	source := `{"nodes":[{"id":"tmpNode","type":"composite_shape","x":0,"y":0,"width":260,"height":45,"text":{"text":"hello","font_weight":"regular","font_size":14,"horizontal_align":"center","vertical_align":"mid"},"style":{"border_color":"#3370ff","border_width":"narrow","border_style":"solid","fill_color":"#e8f3ff"},"composite_shape":{"type":"round_rect"}}]}`
 	args := []string{"+node-create", "--whiteboard-token", "test-board", "--source", source}
-	if err := runUpdateShortcut(t, WhiteboardNodeCreate, args, factory, stdout); err != nil {
-		t.Fatalf("err=%v", err)
+	err := runUpdateShortcut(t, WhiteboardNodeCreate, args, factory, stdout)
+	var internalErr *errs.InternalError
+	if !errors.As(err, &internalErr) {
+		t.Fatalf("error type = %T, want *errs.InternalError", err)
+	}
+	if internalErr.Subtype != errs.SubtypeInvalidResponse {
+		t.Fatalf("Subtype = %q, want %q", internalErr.Subtype, errs.SubtypeInvalidResponse)
+	}
+	if strings.Contains(stdout.String(), "success") {
+		t.Fatalf("stdout=%s, must not report success", stdout.String())
+	}
+}
+
+func TestWhiteboardNodeCreateIDs_RejectsEmptyIDs(t *testing.T) {
+	t.Parallel()
+
+	_, err := whiteboardNodeCreateIDs(map[string]interface{}{"ids": []interface{}{}})
+	var internalErr *errs.InternalError
+	if !errors.As(err, &internalErr) {
+		t.Fatalf("error type = %T, want *errs.InternalError", err)
+	}
+	if internalErr.Subtype != errs.SubtypeInvalidResponse {
+		t.Fatalf("Subtype = %q, want %q", internalErr.Subtype, errs.SubtypeInvalidResponse)
 	}
 }
 

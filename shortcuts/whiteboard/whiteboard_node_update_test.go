@@ -197,6 +197,47 @@ func TestWhiteboardNodeUpdateExecute_BatchFailureReturnsAPIError(t *testing.T) {
 	}
 }
 
+func TestWhiteboardNodeUpdateExecute_RejectsMissingIDs(t *testing.T) {
+	factory, stdout, reg := newUpdateExecuteFactory(t)
+
+	reg.Register(&httpmock.Stub{
+		Method: "PUT",
+		URL:    "/open-apis/board/v1/whiteboards/test-board/nodes/batch_update",
+		Body: map[string]interface{}{
+			"code": 0,
+			"msg":  "success",
+			"data": map[string]interface{}{},
+		},
+	})
+
+	source := `{"nodes":[{"id":"nodeA","type":"text","text":{"content":"hello A"}}]}`
+	args := []string{"+node-update", "--whiteboard-token", "test-board", "--source", source}
+	err := runUpdateShortcut(t, WhiteboardNodeUpdate, args, factory, stdout)
+	var internalErr *errs.InternalError
+	if !errors.As(err, &internalErr) {
+		t.Fatalf("error type = %T, want *errs.InternalError", err)
+	}
+	if internalErr.Subtype != errs.SubtypeInvalidResponse {
+		t.Fatalf("Subtype = %q, want %q", internalErr.Subtype, errs.SubtypeInvalidResponse)
+	}
+	if strings.Contains(stdout.String(), "success") {
+		t.Fatalf("stdout=%s, must not report success", stdout.String())
+	}
+}
+
+func TestWhiteboardNodeUpdateIDs_RejectsEmptyIDs(t *testing.T) {
+	t.Parallel()
+
+	_, err := whiteboardNodeUpdateIDs(map[string]interface{}{"ids": []interface{}{}})
+	var internalErr *errs.InternalError
+	if !errors.As(err, &internalErr) {
+		t.Fatalf("error type = %T, want *errs.InternalError", err)
+	}
+	if internalErr.Subtype != errs.SubtypeInvalidResponse {
+		t.Fatalf("Subtype = %q, want %q", internalErr.Subtype, errs.SubtypeInvalidResponse)
+	}
+}
+
 func TestWhiteboardNodeUpdateTips_MentionTemporaryNonAtomicBehavior(t *testing.T) {
 	t.Parallel()
 

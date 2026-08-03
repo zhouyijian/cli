@@ -4,6 +4,7 @@
 package whiteboard
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -91,15 +92,32 @@ func TestParseWhiteboardNodeBatchPayload_PreservesArbitraryFields(t *testing.T) 
 	if !ok {
 		t.Fatalf("node[custom] = %T, want map[string]interface{}", node["custom"])
 	}
-	if got := custom["x"]; got != float64(1) {
+	if got := custom["x"]; got != json.Number("1") {
 		t.Errorf("node[custom][x] = %v, want 1", got)
 	}
 	points, ok := node["points"].([]interface{})
 	if !ok {
 		t.Fatalf("node[points] = %T, want []interface{}", node["points"])
 	}
-	if len(points) != 2 || points[0] != float64(1) || points[1] != float64(2) {
+	if len(points) != 2 || points[0] != json.Number("1") || points[1] != json.Number("2") {
 		t.Errorf("node[points] = %#v, want [1 2]", points)
+	}
+}
+
+func TestParseWhiteboardNodeBatchPayload_PreservesLargeIntegerPrecision(t *testing.T) {
+	t.Parallel()
+
+	payload, err := parseWhiteboardNodeBatchPayload([]byte(`{"nodes":[{"id":"node-1","custom":{"value":9007199254740993}}]}`), true)
+	if err != nil {
+		t.Fatalf("parseWhiteboardNodeBatchPayload() error = %v", err)
+	}
+
+	encoded, err := json.Marshal(whiteboardNodeCreateReq{Nodes: payload.Nodes})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if got, want := string(encoded), `{"nodes":[{"custom":{"value":9007199254740993},"id":"node-1"}]}`; got != want {
+		t.Fatalf("encoded payload = %s, want %s", got, want)
 	}
 }
 
