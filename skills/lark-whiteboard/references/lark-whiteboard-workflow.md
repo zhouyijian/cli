@@ -104,7 +104,7 @@ append 只创建新内容并保留现有节点：
    - Mermaid / PlantUML / SVG source 用不带 `--overwrite` 的 `+update`。
 4. 如果用户要求相对既有节点的精确位置、无碰撞证明或跨新旧节点连接，但当前没有可验证的最终 OpenAPI payload，进入[能力边界](#能力边界)。
 5. 对最终 artifact 执行所选命令的 dry-run；不要传 `--overwrite`。
-6. 复用同一 artifact、幂等 token 和身份执行，再用 raw 或 preview 验证既有内容仍在且新内容出现。
+6. 复用同一 artifact、幂等 token 和身份执行，再用 raw 或 preview 验证既有内容仍在、新内容出现，且新增内容没有明显覆盖旧内容。
 
 Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须先由 `whiteboard-cli` 转成 OpenAPI `nodes[]`。导出的现有 raw 不得作为 append 输入；否则会复制节点，而不是修改节点。
 
@@ -116,7 +116,8 @@ Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须�
 2. 构造 `{ "nodes": [...] }`，每个 item 只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。
 3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和 body。
 4. 复用同一 payload、幂等 token 和身份真实执行。
-5. 用 raw 或 preview 读回所有目标 node id。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。
+5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。
+6. 真实执行失败时，只能修正同一 payload 中可验证的 schema 错误后重试一次，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。
 
 对单一 Mermaid/PlantUML 代码图的源码重写仍属于 [Source Round-Trip](#source-round-trip)，它实际是 replace，不得用 `+node-update` 伪装。无法生成安全的节点级 payload 时进入[能力边界](#能力边界)，不自动转 replace。
 
@@ -150,7 +151,13 @@ replace 用完整最终 artifact 丢弃非空画板的全部旧状态：
 
 **先确定模型家族**：按训练来源选择 `Claude` / `Gemini` / `GPT` / `GLM` / `Doubao 或 Seed` / `Other`。模型家族只决定本地产物表达方式，不改变 mutation semantics，也不是 `--as user/bot` 的认证身份。
 
-按上到下匹配，命中即停：
+先处理用户显式格式约束：
+
+- 用户明确要求 Mermaid、PlantUML、SVG、DSL 或 OpenAPI nodes 时，优先使用该 artifact 路径。
+- 显式格式只约束本地产物或 source 类型，不能改变 mutation semantics。例如“用 SVG 修改已有画板”仍必须是 patch 或 replace，不能因为选择 SVG 就自动 append 或 overwrite。
+- 显式格式不可满足当前 mutation 的安全边界时，进入[能力边界](#能力边界)，不要改走另一个写入语义。
+
+没有显式格式约束时，按上到下匹配，命中即停：
 
 | 图表类型 | 模型家族 | 路径 |
 |---|---|---|
@@ -171,6 +178,8 @@ route 只交回：
 - 可选的 compiled OpenAPI nodes；若提供，后续 dry-run 与真实写入必须复用同一份 payload。
 
 route 不读取目标画板、不选择 mutation semantics、不执行远端写入，也不自行报告远端成功。
+
+交给 `+node-create` 的 artifact 必须是顶层 `{ "nodes": [...] }` 或该命令明确支持的等价输入。`whiteboard-cli --to openapi --format json` 的 `CliResponse` envelope 只有在被执行器明确支持时才能直接传入；否则必须先整理为 `{ "nodes": data.result.nodes }`。不得把 route 的本地成功响应 envelope 当成已可写入的节点 payload。
 
 ### 已有输入与格式约束
 
@@ -198,6 +207,8 @@ route 不读取目标画板、不选择 mutation semantics、不执行远端写�
 - 确认后如果目标、artifact 或 board state 变化，重新 preflight；replace 需要重新确认。
 - 写后用 raw 或 preview 读回，不只看命令退出码。
 - append 失败时不得自动使用 SVG Edit、清空画板或 `+update --overwrite`。
+- patch 失败时不得自动使用 `+node-create` 遮罩、SVG Edit、raw create 或 `+update --overwrite`。
+- source 写入超时、无响应或结果不明时，先用 raw/preview 读回判断是否已经生效；不得盲目重试并重新生成幂等 token。
 
 具体参数和命令示例见 [`+update`](./lark-whiteboard-update.md)、[`+node-create`](./lark-whiteboard-node-create.md)、[`+node-update`](./lark-whiteboard-node-update.md) 和 [`+node-delete`](./lark-whiteboard-node-delete.md)。
 
@@ -211,6 +222,8 @@ route 不读取目标画板、不选择 mutation semantics、不执行远端写�
 4. 编辑后源码完成当前格式可用的检查。
 
 该路径实际是 replace，不是 patch。必须先说明整板替换语义并取得同意，再进入 replace。Mermaid 可先本地 render/check；PlantUML 遵守[已有输入与格式约束](#已有输入与格式约束)中的 preview 限制。
+
+source replace 执行后如果结果不明，先读回当前画板并与目标 artifact 对比；不能直接再次写入同一整图或改用 append 补救。
 
 ## 能力边界
 

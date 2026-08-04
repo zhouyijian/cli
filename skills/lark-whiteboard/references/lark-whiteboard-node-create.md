@@ -16,6 +16,7 @@
 - 只有 DSL / Mermaid / SVG，还没有转换成 OpenAPI 节点。
 - 只想在文档正文里插入或移动画板 block，这属于 `lark-doc`。
 - 需要修改或删除已有节点；分别使用 `+node-update` 或 `+node-delete`。
+- 需要遮住旧文字、覆盖旧标题、隐藏误放节点或用新增说明节点代替编辑已有节点；这些都是 patch 失败后的视觉补救，不属于 append。
 
 ## 参数
 
@@ -30,6 +31,8 @@
 `nodes[]` 必须是飞书 OpenAPI 画板节点，不是 whiteboard-cli DSL。不要把 `{"type":"shape","shape":...}` 这类 DSL 节点直接传给本命令。
 
 推荐先用 `npx -y @larksuite/whiteboard-cli@^0.2.13 --to openapi --format json` 生成 OpenAPI 结果，再整理成 `{ "nodes": [...] }`。
+
+如果上游产物是 `CliResponse` envelope（例如顶层包含 `code` / `data.result.nodes`），先抽取 `data.result.nodes` 并整理成顶层 `{ "nodes": [...] }`；不要把 envelope 当作 `nodes[]` payload 直接传给本命令。
 
 ```json
 {
@@ -96,5 +99,5 @@ JSON 输出使用 `data.ids`，多个 id 用逗号拼接:
 - 写入前先用 `--dry-run` 检查 method、URL、params 和 body。dry-run 只执行本地校验并打印请求预览，不请求画板 OpenAPI。
 - 对手写节点尤其要先 dry-run；它只能验证请求结构，不能证明节点语义一定可插入。
 - 请求预览、真实执行和重试复用同一 `nodes.json`、幂等 token 和身份。
-- 写后用 `+export --output-type raw` 或 preview 读回，确认旧内容仍在且新节点已出现。
+- 写后用 `+export --output-type raw` 或 preview 读回，确认旧内容仍在、新节点已出现，且新节点没有明显覆盖旧内容。
 - 复杂图表继续走 `whiteboard-cli -> Workflow` 路径，不要把 `+node-create` 当作默认创作入口。

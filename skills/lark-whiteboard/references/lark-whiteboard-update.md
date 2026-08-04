@@ -66,7 +66,7 @@ lark-cli whiteboard +update \
   --as <identity>
 ```
 
-写后验证旧内容仍在且新内容出现。追加失败或位置不符合预期时停止，不得自动整板覆盖。
+写后验证旧内容仍在、新内容出现，且新内容没有明显覆盖旧内容。追加失败或位置不符合预期时停止，不得自动整板覆盖。
 
 DSL 产物需要先转换为 OpenAPI `nodes[]`，然后交给 `+node-create`：
 
@@ -129,4 +129,6 @@ lark-cli whiteboard +update \
 - initialize/append 不传 `--overwrite`；replace 之外不得传 `--overwrite`。
 - patch/delete 分别使用 `+node-update` / `+node-delete`；不得用 raw 创建或 replace 伪装成功。
 - append 失败时不得自动回退到 SVG Edit、清空画板或 replace。
+- patch 失败时不得自动回退到 `+node-create` 遮罩、SVG Edit、raw create 或 replace。
+- source 写入超时、无响应或结果不明时，先读回当前画板判断是否已经生效；不得盲目重试并重新生成幂等 token。
 - 写后通过 raw 或 preview 读回，不只根据退出码声称成功。
