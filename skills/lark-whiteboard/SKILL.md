@@ -14,41 +14,40 @@ metadata:
 > - 运行 `lark-cli --version`，确认可用，无需询问用户。
 > - 运行 `npx -y @larksuite/whiteboard-cli@^0.2.13 -v`，确认可用，无需询问用户。
 
-**CRITICAL — 开始前 MUST 先用 Read 工具读取 [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md)，其中包含认证、权限处理**
-
----
+**CRITICAL — 开始前 MUST 先用 Read 工具读取 [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md)，其中包含认证、权限处理和 `--as user` / `--as bot` 的差异。**
 
 ## 快速决策
 
-**身份**：画板操作默认使用 `--as user`。仅当需要以应用身份上传时使用 `--as bot`。
+路由前必须按顺序完成以下准备：
 
-| 用户需求                                    | 行动                                                                                                |
-|-----------------------------------------|---------------------------------------------------------------------------------------------------|
-| 查看画板内容 / 导出图片 | [`+export --output-type preview`](references/lark-whiteboard-export.md)                       |
-| 导出 SVG 矢量图 | [`+export --output-type svg`](references/lark-whiteboard-export.md)                       |
-| 获取画板的 Mermaid/PlantUML 代码               | [`+export --output-type source`](references/lark-whiteboard-export.md)                             |
-| 检查画板是否由代码绘制                             | [`+export --output-type source`](references/lark-whiteboard-export.md)                             |
-| 定位节点 id / 查看原始节点结构                         | [`+export --output-type raw`](references/lark-whiteboard-export.md)                             |
-| 已知 node id, 微调文字/颜色/样式                         | [`+node-update`](references/lark-whiteboard-node-update.md); 先用 `+export --output-type raw` 定位节点 |
-| 追加已编译好的 OpenAPI 节点                         | [`+node-create`](references/lark-whiteboard-node-create.md); 节点建议由 `npx -y @larksuite/whiteboard-cli@^0.2.13 --to openapi` 生成后整理成 `{ "nodes": [...] }` |
-| 删除已知节点                         | [`+node-delete`](references/lark-whiteboard-node-delete.md); 删除前先确认 node id, 真实执行需要 `--yes` |
-| 用户**已提供** Mermaid/PlantUML/SVG 代码，或明确指定用该格式 | 自己生成/使用代码 → [`+update --input_format mermaid/plantuml/svg`](references/lark-whiteboard-update.md) |
-| 新建/创作复杂图表（架构/流程/组织等）                    | → **[§ 创作 Workflow](references/lark-whiteboard-workflow.md#创作-workflow)**                         |
-| 修改/重绘已有画板                               | → **[§ 修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow)**                         |
+1. 用[范围守卫](references/lark-whiteboard-workflow.md#范围守卫)判断用户要操作文档结构还是同一画布；范围不明时先澄清。
+2. 先[拆分复合请求](references/lark-whiteboard-workflow.md#请求原子化)，再逐个原子操作匹配；first-match 只对单个原子操作生效。
+3. 任何写操作都先读取实际 board state；用户声称画板为空只能作为线索。
+4. 按 `lark-shared` 的身份选择原则和目标资源权限选择 `user` 或 `bot`：用户个人空间或以用户权限分享的资源优先 `user`，应用自有、明确授权给应用的资源或 bot-only 环境使用 `bot`。确定后在读取、请求预览、写入和验证中保持同一身份。
+
+| 原子目标 | 入口 |
+|---|---|
+| 查看、导出、获取源码或原始节点，不改变画板 | `read/export` → [`+export`](references/lark-whiteboard-export.md) |
+| 向已确认的空白画板写入第一批内容 | `initialize` → [创作 Workflow](references/lark-whiteboard-workflow.md#创作-workflow) |
+| 向非空画板只新增内容，不修改既有内容 | `append` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
+| 只修改既有内容 | `patch` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
+| 只删除既有内容 | `delete` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
+| 丢弃非空画板的全部旧内容并写入完整最终状态 | `replace` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
+
+输入格式、输入是否就绪、目标是否已定位，只能缩小已经选定的操作如何执行，不能成为新的主路由。当前 Shortcut 的可执行边界、确认规则和禁止 fallback 统一由 [Workflow](references/lark-whiteboard-workflow.md) 决定。
 
 ## Shortcuts
 
-| Shortcut                                          | 说明 |
-|---------------------------------------------------|---|
-| [`+export`](references/lark-whiteboard-export.md) | 导出画板为预览图片、SVG 矢量图、代码或原始节点结构。 |
-| [`+update`](references/lark-whiteboard-update.md) | 更新画板，支持 PlantUML、Mermaid、SVG 或 OpenAPI 原生格式 |
-| [`+node-create`](references/lark-whiteboard-node-create.md) | 向已有画板追加 OpenAPI 节点；适合已由工具生成节点数据的增量新增 |
-| [`+node-update`](references/lark-whiteboard-node-update.md) | 按节点 id 批量更新已有节点；执行层发起一次 batch_update 请求 |
-| [`+node-delete`](references/lark-whiteboard-node-delete.md) | 按节点 id 删除已有节点；高风险写操作，执行前必须确认目标节点 |
-
----
+| Shortcut | 说明 |
+|---|---|
+| [`+export`](references/lark-whiteboard-export.md) | 导出 preview、SVG、代码或原始节点结构。 |
+| [`+update`](references/lark-whiteboard-update.md) | 初始化空白画板、向非空画板追加新内容，或在明确整板替换时覆盖完整内容。 |
+| [`+node-create`](references/lark-whiteboard-node-create.md) | 向已有画板追加已编译的 OpenAPI 节点。 |
+| [`+node-update`](references/lark-whiteboard-node-update.md) | 按精确 node id 批量更新已有节点字段。 |
+| [`+node-delete`](references/lark-whiteboard-node-delete.md) | 按已确认的 node id 删除节点；真实执行需要 `--yes`。 |
 
 ## 不在本 skill 范围
-- 文档内容编辑 → lark-doc [lark-doc](../lark-doc/SKILL.md)
-- 在文档中创建画板 → [lark-doc-whiteboard.md](../lark-doc/references/lark-doc-whiteboard.md)
+
+- 文档内容编辑 → [lark-doc](../lark-doc/SKILL.md)
+- 在文档中创建、插入或移动画板 block → [lark-doc-whiteboard.md](../lark-doc/references/lark-doc-whiteboard.md)
 - 表格 / Base 操作 → [lark-sheets](../lark-sheets/SKILL.md) / [lark-base](../lark-base/SKILL.md)
