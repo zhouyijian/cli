@@ -81,7 +81,7 @@ var SlidesScreenshot = common.Shortcut{
 				}
 			}
 			if len(slideIDs) == 0 && len(slideNumbers) == 0 {
-				return slidesScreenshotFlagErrorf("--slide-id or --slide-number is required")
+				return slidesScreenshotMissingSelectorError()
 			}
 			if err := validateSlidesScreenshotSelectorLimit(len(slideIDs) + len(slideNumbers)); err != nil {
 				return err
@@ -103,9 +103,6 @@ var SlidesScreenshot = common.Shortcut{
 		slideIDs, slideNumbers, err := slidesScreenshotSelectors(runtime)
 		if err != nil {
 			return common.NewDryRunAPI().Set("error", err.Error())
-		}
-		if len(slideIDs) == 0 && len(slideNumbers) == 0 {
-			return common.NewDryRunAPI().Set("error", "--slide-id or --slide-number is required")
 		}
 		if err := validateSlidesScreenshotSelectorLimit(len(slideIDs) + len(slideNumbers)); err != nil {
 			return common.NewDryRunAPI().Set("error", err.Error())
@@ -154,7 +151,7 @@ var SlidesScreenshot = common.Shortcut{
 			return err
 		}
 		if len(slideIDs) == 0 && len(slideNumbers) == 0 {
-			return slidesScreenshotFlagErrorf("--slide-id or --slide-number is required")
+			return slidesScreenshotMissingSelectorError()
 		}
 		if err := validateSlidesScreenshotSelectorLimit(len(slideIDs) + len(slideNumbers)); err != nil {
 			return err
@@ -264,6 +261,9 @@ func slidesScreenshotSelectors(runtime *common.RuntimeContext) ([]string, []int,
 	}
 
 	slideIDValues := append([]string(nil), runtime.StrSlice("slide-id")...)
+	if runtime.Changed("slide-id") && len(normalizeSlideIDs(slideIDValues)) == 0 {
+		return nil, nil, slidesScreenshotEmptySlideIDError()
+	}
 	if aliasSlideIsID {
 		slideIDValues = append(slideIDValues, aliasSlide)
 	}
@@ -373,6 +373,17 @@ func validateSlidesScreenshotSelectorLimit(count int) error {
 			WithHint("request at most 10 pages at a time")
 	}
 	return nil
+}
+
+func slidesScreenshotMissingSelectorError() error {
+	return errs.NewValidationError(errs.SubtypeInvalidArgument, "--slide-id or --slide-number is required").
+		WithHint("specify up to 10 slides with --slide-id <slide_id> or --slide-number <number>; repeat the flag or use comma-separated values for multiple slides")
+}
+
+func slidesScreenshotEmptySlideIDError() error {
+	return errs.NewValidationError(errs.SubtypeInvalidArgument, "--slide-id cannot be empty").
+		WithParam("--slide-id").
+		WithHint("provide a non-empty slide ID or use --slide-number <number>")
 }
 
 func slidesScreenshotFlagErrorf(format string, args ...interface{}) error {

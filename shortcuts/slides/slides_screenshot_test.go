@@ -670,18 +670,66 @@ func TestSlidesScreenshotAvoidsOverwritingExistingFile(t *testing.T) {
 }
 
 func TestSlidesScreenshotListRequiresSelector(t *testing.T) {
-	f, stdout, _, _ := cmdutil.TestFactory(t, slidesTestConfig(t, ""))
-
-	err := runSlidesShortcut(t, f, stdout, SlidesScreenshot, []string{
-		"+screenshot",
-		"--presentation", "pres_abc",
-		"--as", "user",
-	})
-	if err == nil {
-		t.Fatal("expected error")
+	tests := []struct {
+		name        string
+		args        []string
+		wantMessage string
+		wantHint    string
+		wantParam   string
+	}{
+		{
+			name:        "omitted",
+			args:        nil,
+			wantMessage: "--slide-id or --slide-number is required",
+			wantHint:    "specify up to 10 slides with --slide-id <slide_id> or --slide-number <number>; repeat the flag or use comma-separated values for multiple slides",
+		},
+		{
+			name:        "empty slide ID",
+			args:        []string{"--slide-id", ""},
+			wantMessage: "--slide-id cannot be empty",
+			wantHint:    "provide a non-empty slide ID or use --slide-number <number>",
+			wantParam:   "--slide-id",
+		},
+		{
+			name:        "empty slide ID with slide number",
+			args:        []string{"--slide-id", "", "--slide-number", "1"},
+			wantMessage: "--slide-id cannot be empty",
+			wantHint:    "provide a non-empty slide ID or use --slide-number <number>",
+			wantParam:   "--slide-id",
+		},
 	}
-	if !strings.Contains(err.Error(), "--slide-id or --slide-number is required") {
-		t.Fatalf("error = %v, want missing selector error", err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, stdout, _, _ := cmdutil.TestFactory(t, slidesTestConfig(t, ""))
+			args := append([]string{"+screenshot", "--presentation", "pres_abc"}, tt.args...)
+			args = append(args, "--as", "user")
+
+			err := runSlidesShortcut(t, f, stdout, SlidesScreenshot, args)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			problem, ok := errs.ProblemOf(err)
+			if !ok {
+				t.Fatalf("error = %T %v, want typed validation error", err, err)
+			}
+			if problem.Category != errs.CategoryValidation || problem.Subtype != errs.SubtypeInvalidArgument {
+				t.Fatalf("problem = %#v, want validation/invalid_argument", problem)
+			}
+			if problem.Message != tt.wantMessage {
+				t.Fatalf("message = %q, want %q", problem.Message, tt.wantMessage)
+			}
+			if problem.Hint != tt.wantHint {
+				t.Fatalf("hint = %q, want %q", problem.Hint, tt.wantHint)
+			}
+			var validationErr *errs.ValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("error type = %T, want *errs.ValidationError", err)
+			}
+			if validationErr.Param != tt.wantParam {
+				t.Fatalf("param = %q, want %q", validationErr.Param, tt.wantParam)
+			}
+		})
 	}
 }
 
