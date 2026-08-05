@@ -73,7 +73,7 @@ lark-cli whiteboard +update \
 DSL 产物需要先转换为 OpenAPI `nodes[]`，然后交给 `+node-create`：
 
 ```bash
-{{CLI}} -i ./diagram.json --to openapi --format json -o ./compiled-nodes.json
+npx -y @larksuite/whiteboard-cli@^0.2.13 -i ./diagram.json --to openapi --format json -o ./compiled-nodes.json
 
 lark-cli whiteboard +node-create \
   --whiteboard-token <board_token> \

@@ -30,7 +30,7 @@
 
 `nodes[]` 必须是飞书 OpenAPI 画板节点，不是 whiteboard-cli DSL。不要把 `{"type":"shape","shape":...}` 这类 DSL 节点直接传给本命令。
 
-推荐先用 `{{CLI}} --to openapi --format json` 生成 OpenAPI 结果，再整理成 `{ "nodes": [...] }`。
+推荐先用 `npx -y @larksuite/whiteboard-cli@^0.2.13 --to openapi --format json` 生成 OpenAPI 结果，再整理成 `{ "nodes": [...] }`。
 
 如果上游产物是 `CliResponse` envelope（例如顶层包含 `code` / `data.result.nodes`），先抽取 `data.result.nodes` 并整理成顶层 `{ "nodes": [...] }`；不要把 envelope 当作 `nodes[]` payload 直接传给本命令。
 
