@@ -30,7 +30,7 @@
 
 `nodes[]` 必须是飞书 OpenAPI 画板节点，不是 whiteboard-cli DSL。不要把 `{"type":"shape","shape":...}` 这类 DSL 节点直接传给本命令。
 
-推荐先用 `npx -y @larksuite/whiteboard-cli@^0.2.13 --to openapi --format json` 生成 OpenAPI 结果，再整理成 `{ "nodes": [...] }`。
+推荐先用 `{{CLI}} --to openapi --format json` 生成 OpenAPI 结果，再整理成 `{ "nodes": [...] }`。
 
 如果上游产物是 `CliResponse` envelope（例如顶层包含 `code` / `data.result.nodes`），先抽取 `data.result.nodes` 并整理成顶层 `{ "nodes": [...] }`；不要把 envelope 当作 `nodes[]` payload 直接传给本命令。
 
@@ -100,4 +100,5 @@ JSON 输出使用 `data.ids`，多个 id 用逗号拼接:
 - 对手写节点尤其要先 dry-run；它只能验证请求结构，不能证明节点语义一定可插入。
 - 请求预览、真实执行和重试复用同一 `nodes.json`、幂等 token 和身份。
 - 写后用 `+export --output-type raw` 或 preview 读回，确认旧内容仍在、新节点已出现，且新节点没有明显覆盖旧内容。
+- 如果新增内容有“在 X 旁边/右侧/下方/某列/某阶段”等 anchor 要求，写前记录 anchor bbox 和预计新增 bbox；写后确认新增节点仍在目标区域。
 - 复杂图表继续走 `whiteboard-cli -> Workflow` 路径，不要把 `+node-create` 当作默认创作入口。

@@ -58,7 +58,7 @@ lark-cli whiteboard +export \
 |---|---|---|
 | read/export | `+export` | 按 preview、svg、source、raw 选择输出。 |
 | initialize | `+update`，不带 `--overwrite` | 仅限已确认 blank 的画板。 |
-| append | OpenAPI `nodes[]` 用 `+node-create`；Mermaid / PlantUML / SVG 用不带 `--overwrite` 的 `+update` | 只创建新内容；不修改或删除既有节点。 |
+| append | OpenAPI `nodes[]` 用 `+node-create`；Mermaid / PlantUML / SVG source 只能用于不要求锚点放置的普通追加，且不带 `--overwrite` | 只创建新内容；不修改或删除既有节点。 |
 | patch | `+node-update` | 必须已唯一定位 node id，并准备只包含待修改字段的 OpenAPI payload。 |
 | delete | `+node-delete` | 必须通过 raw 确认 node id，dry-run 后取得删除批准，真实执行传 `--yes`。 |
 | replace | `+update --overwrite` | 丢弃非空画板的全部旧状态，必须经过覆盖确认。 |
@@ -101,10 +101,11 @@ append 只创建新内容并保留现有节点：
 2. 确认请求不要求修改、删除或复用既有节点 ID。
 3. 生成并检查独立 artifact，然后按 artifact contract 选择唯一执行器：
    - 已编译 OpenAPI `nodes[]`（包括 DSL 转换结果）用 `+node-create`。
-   - Mermaid / PlantUML / SVG source 用不带 `--overwrite` 的 `+update`。
-4. 如果用户要求相对既有节点的精确位置、无碰撞证明或跨新旧节点连接，但当前没有可验证的最终 OpenAPI payload，进入[能力边界](#能力边界)。
-5. 对最终 artifact 执行所选命令的 dry-run；不要传 `--overwrite`。
-6. 复用同一 artifact、幂等 token 和身份执行，再用 raw 或 preview 验证既有内容仍在、新内容出现，且新增内容没有明显覆盖旧内容。
+   - Mermaid / PlantUML / SVG source 只有在普通追加、不要求相对既有节点放置时，才能用不带 `--overwrite` 的 `+update`。
+4. 用户说“在 X 旁边/附近/下方/上方/某列/某阶段/某泳道/某象限”时，默认这是 canvas 空间约束，而不是普通追加。必须先用 raw 定位 anchor 节点或同组节点 bbox，再用可验证的 OpenAPI payload 放置新增节点，并在写后验证新增 bbox 仍在目标区域。
+5. 如果相对放置、无碰撞证明或跨新旧节点连接缺少可验证的最终 OpenAPI payload，进入[能力边界](#能力边界)。不得改用 source `+update` 或 `--overwrite` 来绕过定位能力。
+6. 对最终 artifact 执行所选命令的 dry-run；不要传 `--overwrite`。
+7. 复用同一 artifact、幂等 token 和身份执行，再用 raw 或 preview 验证既有内容仍在、新内容出现，且新增内容没有明显覆盖旧内容。存在 anchor 要求时，同时验证新增节点 bbox 与 anchor bbox 的关系。
 
 Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须先由 `whiteboard-cli` 转成 OpenAPI `nodes[]`。导出的现有 raw 不得作为 append 输入；否则会复制节点，而不是修改节点。
 
@@ -113,11 +114,11 @@ Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须�
 已有节点的字段级修改使用 `+node-update`:
 
 1. 用 raw 唯一定位每个目标 node id；目标不唯一时停止并要求定位依据。
-2. 构造 `{ "nodes": [...] }`，每个 item 推荐只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。若上游直接给出未清洗的 `+export --output-type raw` 或 nodes OpenAPI 响应，也只能交给 `+node-update`：CLI 会容错提取 `data.nodes` 并投影到 `WhiteboardNode` update schema；不得主动构造 response envelope，也不得把同一 raw 交给 `+update raw` 冒充 patch。
+2. 构造 `{ "nodes": [...] }`，每个 item 通常只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。文本替换是例外：从目标 raw 复制原 `text` 子对象，保留颜色、主题色、字号、对齐、背景等样式字段，只替换文案。若上游直接给出未清洗的 `+export --output-type raw` 或 nodes OpenAPI 响应，也只能交给 `+node-update`：CLI 会容错提取 `data.nodes` 并投影到 `WhiteboardNode` update schema；不得主动构造 response envelope，也不得把同一 raw 交给 `+update raw` 冒充 patch。
 3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和 body。
 4. 复用同一 payload、幂等 token 和身份真实执行。
-5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。
-6. 真实执行失败时，只能修正同一 payload 中可验证的 schema 错误后重试一次，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。
+5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。文本替换还必须导出 preview，确认文字可读、层级正确，并保留原容器的颜色和强调关系；服务端把颜色字段归一化为 theme code 时，以 preview 可读性为完成依据。
+6. 真实执行失败时，只能修正同一 payload 中可验证的 schema 错误后重试一次，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。遇到 `99992402 field validation failed` 时，同一批节点同一类 payload 只允许一次结构调整，仍失败就停止。
 
 对单一 Mermaid/PlantUML 代码图的源码重写仍属于 [Source Round-Trip](#source-round-trip)，它实际是 replace，不得用 `+node-update` 伪装。无法生成安全的节点级 payload 时进入[能力边界](#能力边界)，不自动转 replace。
 
@@ -216,6 +217,7 @@ route 不读取目标画板、不选择 mutation semantics、不执行远端写�
 - 写后用 raw 或 preview 读回，不只看命令退出码。
 - append 失败时不得自动使用 SVG Edit、清空画板或 `+update --overwrite`。
 - patch 失败时不得自动使用 `+node-create` 遮罩、SVG Edit、raw create 或 `+update --overwrite`。
+- source append 不能因为无法表达“放到右侧/旁边/某列”就升级成 replace；没有明确覆盖授权时，`--overwrite` 是破坏性操作。
 - source 写入超时、无响应或结果不明时，先用 raw/preview 读回判断是否已经生效；不得盲目重试并重新生成幂等 token。
 
 具体参数和命令示例见 [`+update`](./lark-whiteboard-update.md)、[`+node-create`](./lark-whiteboard-node-create.md)、[`+node-update`](./lark-whiteboard-node-update.md) 和 [`+node-delete`](./lark-whiteboard-node-delete.md)。
@@ -239,6 +241,7 @@ source replace 执行后如果结果不明，先读回当前画板并与目标 a
 
 - 无法唯一定位 node id，或无法构造安全 OpenAPI payload 的高层级结构修改。
 - 在复杂非空画板的指定位置插入或移动图形，同时证明无碰撞并保留全部连接语义、层级、资源和交互属性。
+- 非空画板中要求“新增到右侧/旁边/下方/某列”等相对位置，但当前只有 Mermaid/PlantUML/SVG source，无法生成带最终 bbox 的 OpenAPI payload。
 - 在没有对应原生写入能力时，承诺生成原生表格、原生思维导图、Mermaid/PlantUML 源码级可维护节点；普通形状模拟只能作为用户明确接受的视觉降级。
 
 遇到能力边界时保持原画板不变，并提供与用户目标相符的选项：
