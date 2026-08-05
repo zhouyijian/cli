@@ -16,6 +16,11 @@ type whiteboardNodeBatchPayload struct {
 	Nodes []map[string]interface{} `json:"nodes"`
 }
 
+type whiteboardNodeBatchEnvelope struct {
+	Nodes []map[string]interface{}    `json:"nodes"`
+	Data  *whiteboardNodeBatchPayload `json:"data"`
+}
+
 func parseWhiteboardNodeBatchPayload(raw []byte, requireID bool) (whiteboardNodeBatchPayload, error) {
 	var document json.RawMessage
 	if err := json.Unmarshal(raw, &document); err != nil {
@@ -24,13 +29,17 @@ func parseWhiteboardNodeBatchPayload(raw []byte, requireID bool) (whiteboardNode
 			WithCause(err)
 	}
 
-	var payload whiteboardNodeBatchPayload
+	var envelope whiteboardNodeBatchEnvelope
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	decoder.UseNumber()
-	if err := decoder.Decode(&payload); err != nil {
+	if err := decoder.Decode(&envelope); err != nil {
 		return whiteboardNodeBatchPayload{}, errs.NewValidationError(errs.SubtypeInvalidArgument, "unmarshal input json failed: %v", err).
 			WithParam("--source").
 			WithCause(err)
+	}
+	payload := whiteboardNodeBatchPayload{Nodes: envelope.Nodes}
+	if len(payload.Nodes) == 0 && envelope.Data != nil {
+		payload = *envelope.Data
 	}
 	if len(payload.Nodes) == 0 {
 		return whiteboardNodeBatchPayload{}, errs.NewValidationError(errs.SubtypeInvalidArgument, `--source must include non-empty "nodes"`).

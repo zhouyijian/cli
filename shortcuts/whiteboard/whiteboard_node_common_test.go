@@ -50,6 +50,48 @@ func TestParseWhiteboardNodeBatchPayload_EmptyNodes(t *testing.T) {
 	assertValidationParam(t, err, "--source", false)
 }
 
+func TestParseWhiteboardNodeBatchPayload_AcceptsDataNodesEnvelope(t *testing.T) {
+	t.Parallel()
+
+	payload, err := parseWhiteboardNodeBatchPayload([]byte(`{"code":0,"msg":"success","data":{"nodes":[{"id":"node-1","text":{"text":"hello"},"custom":{"value":9007199254740993}}]}}`), true)
+	if err != nil {
+		t.Fatalf("parseWhiteboardNodeBatchPayload() error = %v", err)
+	}
+	if len(payload.Nodes) != 1 {
+		t.Fatalf("len(payload.Nodes) = %d, want 1", len(payload.Nodes))
+	}
+	node := payload.Nodes[0]
+	if got := node["id"]; got != "node-1" {
+		t.Fatalf("node[id] = %v, want node-1", got)
+	}
+	custom, ok := node["custom"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("node[custom] = %T, want map[string]interface{}", node["custom"])
+	}
+	if got := custom["value"]; got != json.Number("9007199254740993") {
+		t.Fatalf("node[custom][value] = %v, want 9007199254740993", got)
+	}
+}
+
+func TestParseWhiteboardNodeBatchPayload_PrefersTopLevelNodesOverEnvelope(t *testing.T) {
+	t.Parallel()
+
+	payload, err := parseWhiteboardNodeBatchPayload([]byte(`{"nodes":[{"id":"top"}],"data":{"nodes":[{"id":"nested"}]}}`), true)
+	if err != nil {
+		t.Fatalf("parseWhiteboardNodeBatchPayload() error = %v", err)
+	}
+	if len(payload.Nodes) != 1 || payload.Nodes[0]["id"] != "top" {
+		t.Fatalf("payload.Nodes = %#v, want top-level nodes", payload.Nodes)
+	}
+}
+
+func TestParseWhiteboardNodeBatchPayload_RejectsEmptyDataEnvelope(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseWhiteboardNodeBatchPayload([]byte(`{"code":0,"data":{}}`), true)
+	assertValidationParam(t, err, "--source", false)
+}
+
 func TestParseWhiteboardNodeBatchPayload_InvalidJSONPreservesCause(t *testing.T) {
 	t.Parallel()
 

@@ -23,7 +23,7 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 		Args: []string{
 			"whiteboard", "+node-update",
 			"--whiteboard-token", "wbcnUpdateDryRun",
-			"--source", `{"nodes":[{"id":"nodeA","type":"text","text":{"content":"hello A"}},{"id":"nodeB","type":"text","text":{"content":"hello B"}}]}`,
+			"--source", `{"code":0,"msg":"success","data":{"nodes":[{"id":"nodeA","type":"text_shape","text":{"text":"hello A","content":"drop me"},"extra":true},{"id":"nodeB","type":"text_shape","text":{"text":"hello B"}}]}}`,
 			"--idempotent-token", "update-token-12345",
 			"--dry-run",
 		},
@@ -43,7 +43,11 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 	}
 	require.Equal(t, "update-token-12345", clie2e.DryRunGet(out, "api.0.params.client_token").String(), out)
 	require.Equal(t, "nodeA", clie2e.DryRunGet(out, "api.0.body.nodes.0.id").String(), out)
-	require.Equal(t, "hello A", clie2e.DryRunGet(out, "api.0.body.nodes.0.text.content").String(), out)
+	require.Equal(t, "hello A", clie2e.DryRunGet(out, "api.0.body.nodes.0.text.text").String(), out)
+	require.False(t, clie2e.DryRunGet(out, "api.0.body.nodes.0.text.content").Exists(), out)
+	require.False(t, clie2e.DryRunGet(out, "api.0.body.nodes.0.extra").Exists(), out)
+	require.False(t, clie2e.DryRunGet(out, "api.0.body.code").Exists(), out)
+	require.False(t, clie2e.DryRunGet(out, "api.0.body.data").Exists(), out)
 	require.Equal(t, "nodeB", clie2e.DryRunGet(out, "api.0.body.nodes.1.id").String(), out)
-	require.Equal(t, "hello B", clie2e.DryRunGet(out, "api.0.body.nodes.1.text.content").String(), out)
+	require.Equal(t, "hello B", clie2e.DryRunGet(out, "api.0.body.nodes.1.text.text").String(), out)
 }

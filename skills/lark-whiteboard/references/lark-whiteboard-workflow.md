@@ -113,7 +113,7 @@ Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须�
 已有节点的字段级修改使用 `+node-update`:
 
 1. 用 raw 唯一定位每个目标 node id；目标不唯一时停止并要求定位依据。
-2. 构造 `{ "nodes": [...] }`，每个 item 只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。
+2. 构造 `{ "nodes": [...] }`，每个 item 推荐只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。若上游直接给出未清洗的 `+export --output-type raw` 或 nodes OpenAPI 响应，也只能交给 `+node-update`：CLI 会容错提取 `data.nodes` 并投影到 `WhiteboardNode` update schema；不得主动构造 response envelope，也不得把同一 raw 交给 `+update raw` 冒充 patch。
 3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和 body。
 4. 复用同一 payload、幂等 token 和身份真实执行。
 5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。
@@ -189,6 +189,14 @@ route 不读取目标画板、不选择 mutation semantics、不执行远端写�
 - `raw` 只适合消费可信生成器的创建 payload；禁止手改导出的 raw 后用 `+update` 声称 patch。
 - `whiteboard-cli` 当前不能本地渲染 PlantUML。`+update --dry-run` 也只生成本地请求预览，不验证服务端解析；真实写入是第一次服务端解析。执行前必须明确缺少写前几何 preview 和服务端解析证明，用户要求其中任一证明时停止。
 
+### 原生语义约束
+
+用户明确要求“原生表格 / 原生思维导图 / Mermaid 源码 / PlantUML 源码 / 可继续按源码维护”时，不能只用普通形状、文本和连线模拟后声称满足原生可编辑性。
+
+- 如果输入本身是 Mermaid/PlantUML source，保留源码路径；对既有单一源码图的修改走 [Source Round-Trip](#source-round-trip)，并说明 replace 语义。
+- 如果只能生成普通 OpenAPI nodes 或 SVG 来模拟表格、思维导图、Mermaid/PlantUML，必须把它标为视觉降级；用户没有接受降级时进入[能力边界](#能力边界)，不写入。
+- 写后验证不能只看视觉接近；需要核对目标是否仍具备用户要求的原生结构或源码级维护入口。无法核对时报告能力边界。
+
 ### 写入策略
 
 | Operation | Preservation | Confirmation |
@@ -231,6 +239,7 @@ source replace 执行后如果结果不明，先读回当前画板并与目标 a
 
 - 无法唯一定位 node id，或无法构造安全 OpenAPI payload 的高层级结构修改。
 - 在复杂非空画板的指定位置插入或移动图形，同时证明无碰撞并保留全部连接语义、层级、资源和交互属性。
+- 在没有对应原生写入能力时，承诺生成原生表格、原生思维导图、Mermaid/PlantUML 源码级可维护节点；普通形状模拟只能作为用户明确接受的视觉降级。
 
 遇到能力边界时保持原画板不变，并提供与用户目标相符的选项：
 

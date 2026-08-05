@@ -20,7 +20,7 @@
 - `preview`：预览图片。推荐使用 `--output ./preview` 这类无后缀路径；CLI 会根据实际 `Content-Type` 补齐 `.png` 或 `.jpg`。
 - `svg`：导出画板为标准 SVG 矢量图。可用于 SVG 编辑后回写画板（见 [`routes/svg-edit.md`](../routes/svg-edit.md)）。注意：导出为纯视觉快照，思维导图层级、表格结构、连接器绑定等语义信息会丢失。
 - `source`：PlantUML/Mermaid 代码。仅限画板内有且仅有一个 PlantUML/Mermaid 图时，才可导出代码，否则会在返回值中告知不存在/有多个节点。
-- `raw`：飞书 OpenAPI 原生画板节点格式。用于判定 board state、定位 `data.nodes[].id` 和核对字段。已知 node id 的局部修改用 [`+node-update`](./lark-whiteboard-node-update.md)，删除用 [`+node-delete`](./lark-whiteboard-node-delete.md)；不要把完整导出快照手改后交给 `+update raw`，因为它会创建新节点并重新分配 ID。复杂设计/修改参考 [渲染 & 写入画板](./lark-whiteboard-workflow.md#渲染--写入画板)。
+- `raw`：飞书 OpenAPI 原生画板节点格式。用于判定 board state、定位 `data.nodes[].id` 和核对字段。已知 node id 的局部修改用 [`+node-update`](./lark-whiteboard-node-update.md)，删除用 [`+node-delete`](./lark-whiteboard-node-delete.md)；`+node-update` 推荐输入 `{ "nodes": [...] }`，也会容错识别未清洗 raw/export 响应中的 `data.nodes` 并在发送前丢弃不支持的 raw 字段。不要把完整导出快照手改后交给 `+update raw`，因为它会创建新节点并重新分配 ID。复杂设计/修改参考 [渲染 & 写入画板](./lark-whiteboard-workflow.md#渲染--写入画板)。
 
 ## 示例
 

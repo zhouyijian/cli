@@ -20,7 +20,7 @@ func TestWhiteboardNodeUpdateValidate_SourceMissingIDTypedParam(t *testing.T) {
 
 	rt := newTestRuntime(map[string]string{
 		"whiteboard-token": "test-board",
-		"source":           `{"nodes":[{"type":"text","text":{"content":"hello"}}]}`,
+		"source":           `{"nodes":[{"type":"text_shape","text":{"text":"hello"}}]}`,
 	}, nil)
 
 	err := wbNodeUpdateValidate(context.Background(), rt)
@@ -34,8 +34,8 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 		"whiteboard-token": "test-board",
 		"idempotent-token": "update-token-12345",
 		"source": `{"nodes":[` +
-			`{"id":"nodeA","type":"text","text":{"content":"hello A"}},` +
-			`{"id":"nodeB","type":"text","text":{"content":"hello B"}}` +
+			`{"id":"nodeA","type":"text_shape","text":{"text":"hello A"}},` +
+			`{"id":"nodeB","type":"text_shape","text":{"text":"hello B"}}` +
 			`]}`,
 	}, nil)
 
@@ -85,8 +85,108 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 			t.Fatalf("body.nodes[%d].id = %#v", i, node["id"])
 		}
 		text, ok := node["text"].(map[string]interface{})
-		if !ok || text["content"] != wantText[i] {
-			t.Fatalf("body.nodes[%d].text = %#v, want content %q", i, node["text"], wantText[i])
+		if !ok || text["text"] != wantText[i] {
+			t.Fatalf("body.nodes[%d].text = %#v, want text %q", i, node["text"], wantText[i])
+		}
+	}
+}
+
+func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
+	t.Parallel()
+
+	payload, err := parseWhiteboardNodeBatchPayload([]byte(`{"nodes":[{
+		"id":"nodeA",
+		"type":"text_shape",
+		"parent_id":"parentA",
+		"x":1,
+		"y":2,
+		"width":100,
+		"height":50,
+		"locked":false,
+		"z_index":3,
+		"children":["childA"],
+		"created_at":123,
+		"unknown_top":{"x":1},
+		"text":{
+			"text":"hello",
+			"content":"legacy alias must not be sent",
+			"font_size":14,
+			"theme_text_color_code":2,
+			"rich_text":{
+				"paragraphs":[{
+					"paragraph_type":0,
+					"elements":[{
+						"element_type":0,
+						"text_element":{
+							"text":"hello",
+							"text_style":{"font_size":14,"extra_style":true}
+						},
+						"extra_element":true
+					}],
+					"extra_paragraph":true
+				}],
+				"extra_rich_text":true
+			}
+		},
+		"style":{
+			"fill_color":"#ffffff",
+			"dark_fill_color":"#000000",
+			"border_radius":{"top_left":4,"unexpected":9},
+			"fill_gradient":{
+				"type":"linear-gradient",
+				"handle_positions":[{"x":0,"y":0,"extra":1}],
+				"stops":[{"position":0,"color":"#fff","extra":1}]
+			},
+			"extra_style":true
+		},
+		"connector":{
+			"turning_points":[{"x":1,"y":2,"extra":3}],
+			"start_object":{"id":"nodeB","position":{"x":4,"y":5,"extra":6},"extra_object":true},
+			"extra_connector":true
+		},
+		"syntax":{"syntax_type":"svg","code":"<svg/>","style_type":"default","extra_syntax":true}
+	}]}`), true)
+	if err != nil {
+		t.Fatalf("parseWhiteboardNodeBatchPayload() error = %v", err)
+	}
+
+	body := whiteboardNodeBatchUpdateBody(payload)
+	data, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	got := string(data)
+	for _, banned := range []string{
+		"created_at",
+		"unknown_top",
+		"content",
+		"extra_style",
+		"extra_rich_text",
+		"extra_paragraph",
+		"extra_element",
+		"unexpected",
+		"extra_connector",
+		"extra_object",
+		"extra_syntax",
+	} {
+		if strings.Contains(got, banned) {
+			t.Fatalf("sanitized body still contains %q: %s", banned, got)
+		}
+	}
+	for _, want := range []string{
+		`"id":"nodeA"`,
+		`"parent_id":"parentA"`,
+		`"text":"hello"`,
+		`"font_size":14`,
+		`"theme_text_color_code":2`,
+		`"dark_fill_color":"#000000"`,
+		`"border_radius":{"top_left":4}`,
+		`"fill_gradient"`,
+		`"turning_points":[{"x":1,"y":2}]`,
+		`"syntax":{"code":"\u003csvg/\u003e","style_type":"default","syntax_type":"svg"}`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("sanitized body missing %q: %s", want, got)
 		}
 	}
 }
@@ -112,8 +212,8 @@ func TestWhiteboardNodeUpdateExecute_BatchUpdatesNodes(t *testing.T) {
 	reg.Register(stub)
 
 	source := `{"nodes":[` +
-		`{"id":"nodeA","type":"text","text":{"content":"hello A"}},` +
-		`{"id":"nodeB","type":"text","text":{"content":"hello B"}}` +
+		`{"id":"nodeA","type":"text_shape","text":{"text":"hello A"}},` +
+		`{"id":"nodeB","type":"text_shape","text":{"text":"hello B"}}` +
 		`]}`
 	args := []string{"+node-update", "--whiteboard-token", "test-board", "--source", source, "--idempotent-token", "update-token-12345"}
 	if err := runUpdateShortcut(t, WhiteboardNodeUpdate, args, factory, stdout); err != nil {
@@ -152,7 +252,7 @@ func TestWhiteboardNodeUpdateExecute_WithoutIdempotentTokenOmitsClientToken(t *t
 	}
 	reg.Register(stub)
 
-	source := `{"nodes":[{"id":"nodeA","type":"text","text":{"content":"hello A"}}]}`
+	source := `{"nodes":[{"id":"nodeA","type":"text_shape","text":{"text":"hello A"}}]}`
 	args := []string{"+node-update", "--whiteboard-token", "test-board", "--source", source}
 	if err := runUpdateShortcut(t, WhiteboardNodeUpdate, args, factory, stdout); err != nil {
 		t.Fatalf("err=%v", err)
@@ -176,8 +276,8 @@ func TestWhiteboardNodeUpdateExecute_BatchFailureReturnsAPIError(t *testing.T) {
 	})
 
 	source := `{"nodes":[` +
-		`{"id":"nodeA","type":"text","text":{"content":"hello A"}},` +
-		`{"id":"nodeB","type":"text","text":{"content":"hello B"}}` +
+		`{"id":"nodeA","type":"text_shape","text":{"text":"hello A"}},` +
+		`{"id":"nodeB","type":"text_shape","text":{"text":"hello B"}}` +
 		`]}`
 	args := []string{"+node-update", "--whiteboard-token", "test-board", "--source", source}
 	err := runUpdateShortcut(t, WhiteboardNodeUpdate, args, factory, stdout)
@@ -210,7 +310,7 @@ func TestWhiteboardNodeUpdateExecute_RejectsMissingIDs(t *testing.T) {
 		},
 	})
 
-	source := `{"nodes":[{"id":"nodeA","type":"text","text":{"content":"hello A"}}]}`
+	source := `{"nodes":[{"id":"nodeA","type":"text_shape","text":{"text":"hello A"}}]}`
 	args := []string{"+node-update", "--whiteboard-token", "test-board", "--source", source}
 	err := runUpdateShortcut(t, WhiteboardNodeUpdate, args, factory, stdout)
 	var internalErr *errs.InternalError
@@ -273,8 +373,8 @@ func assertNodeBatchUpdateCapturedBody(t *testing.T, raw []byte, wantContent []s
 			t.Fatalf("body.nodes[%d].id absent; body=%s", i, string(raw))
 		}
 		text, ok := node["text"].(map[string]interface{})
-		if !ok || text["content"] != wantContent[i] {
-			t.Fatalf("body.nodes[%d].text = %#v, want content %q; body=%s", i, node["text"], wantContent[i], string(raw))
+		if !ok || text["text"] != wantContent[i] {
+			t.Fatalf("body.nodes[%d].text = %#v, want text %q; body=%s", i, node["text"], wantContent[i], string(raw))
 		}
 	}
 }
