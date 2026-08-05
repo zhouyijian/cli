@@ -255,11 +255,13 @@ N. 结尾页：[结尾文案]
 
 ### Wiki 链接特殊处理（关键！）
 
-知识库链接（`/wiki/TOKEN`）不能直接当 `xml_presentation_id`。直接调用原生 API 前，先查询 wiki 节点，确认 `node.obj_type == "slides"`，再用 `node.obj_token` 作为真实 presentation ID。
+知识库链接（`/wiki/TOKEN`）不能直接当 `xml_presentation_id`。直接调用原生 API 前，先用 Wiki shortcut 查询节点，确认 `data.obj_type == "slides"`，再用 `data.obj_token` 作为真实 presentation ID。
 
 ```bash
-lark-cli wiki spaces get_node --as user --params '{"token":"wiki_token"}'
+lark-cli wiki +node-get --node-token '<wiki_url>' --as user --format json
 ```
+
+节点解析必须与后续 Slides 操作使用相同身份；下游明确使用 `--as bot` 时，这里也改为 `--as bot`。
 
 带 `--presentation` 的 slides shortcut 都会自动解析 `/wiki/` URL 并校验 `obj_type`；手动调用 `xml_presentations.*` / `xml_presentation.slide.*` 时才需要自己做这一步。
 
