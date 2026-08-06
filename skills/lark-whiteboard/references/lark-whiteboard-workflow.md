@@ -86,7 +86,8 @@ ParseImage 只用于“把一张本地图片里的结构解析成目标画板内
 
 1. 按 `lark-shared` 选择身份；首版 `+parse-image` 只使用 `--as user`。
 2. 若目标画板可能已有内容，默认 `overwrite=false` 追加。只有用户明确要求覆盖/替换，才传 `--overwrite`。
-3. 先 dry-run:
+3. 如需指定 Canvas Agent 模式，`+parse-image` 支持 `--mode mini|flash|agentic|agentic_max`；不传时服务端默认 `flash`。
+4. 先 dry-run:
 
 ```bash
 lark-cli whiteboard +parse-image \
@@ -96,7 +97,7 @@ lark-cli whiteboard +parse-image \
   --dry-run
 ```
 
-4. 真实提交:
+5. 真实提交:
 
 ```bash
 lark-cli whiteboard +parse-image \
@@ -105,8 +106,8 @@ lark-cli whiteboard +parse-image \
   --as user
 ```
 
-5. 提交成功只表示服务端任务已创建，不表示画板已经写入完成。记录返回的 `task_id` 和 `next_command`。
-6. 用户明确要求等待、评测要求同轮闭环，或需要最终写入证据时，调用:
+6. 提交成功只表示服务端任务已创建，不表示画板已经写入完成。记录返回的 `task_id` 和 `next_command`。
+7. 用户明确要求等待、评测要求同轮闭环，或需要最终写入证据时，调用:
 
 ```bash
 lark-cli whiteboard +parse-image-result \
@@ -116,7 +117,7 @@ lark-cli whiteboard +parse-image-result \
   --as user
 ```
 
-7. 成功后如需证明画板内容，继续用 `+export --output-type raw` 或 preview 验证。
+8. 成功后如需证明画板内容，继续用 `+export --output-type raw` 或 preview 验证。
 
 禁止事项：
 

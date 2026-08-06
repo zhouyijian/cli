@@ -24,6 +24,7 @@
 | `--whiteboard-token` | 是 | 目标画板 token。 |
 | `--image` / `-i` | 是 | 本地图片路径，支持 PNG、JPG、JPEG、GIF、WEBP。 |
 | `--overwrite` | 否 | 是否覆盖现有画板内容。默认 false，即追加。 |
+| `--mode` | 否 | Canvas Agent 模式，可选 `mini`、`flash`、`agentic`、`agentic_max`；不传时服务端默认 `flash`。 |
 | `--client-token` | 否 | 幂等 token。未传时 CLI 自动生成。 |
 
 ## parse-image 示例
@@ -44,6 +45,7 @@ lark-cli whiteboard +parse-image \
 lark-cli whiteboard +parse-image \
   --whiteboard-token <whiteboard_token> \
   --image ./input.png \
+  --mode agentic_max \
   --as user
 ```
 

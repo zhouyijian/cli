@@ -32,6 +32,13 @@ var wbParseImageExts = map[string]bool{
 	".webp": true,
 }
 
+const (
+	parseImageModeMini       = "mini"
+	parseImageModeFlash      = "flash"
+	parseImageModeAgentic    = "agentic"
+	parseImageModeAgenticMax = "agentic_max"
+)
+
 func wbParseImageURL(token string) string {
 	return fmt.Sprintf("/open-apis/board/v1/whiteboards/%s/parse_image", url.PathEscape(token))
 }
@@ -74,6 +81,17 @@ func normalizeParseImageClientToken(raw string) (string, error) {
 		token = uuid.NewString()
 	}
 	return token, nil
+}
+
+func normalizeParseImageMode(raw string) (string, error) {
+	mode := strings.TrimSpace(raw)
+	switch mode {
+	case "", parseImageModeMini, parseImageModeFlash, parseImageModeAgentic, parseImageModeAgenticMax:
+		return mode, nil
+	default:
+		return "", errs.NewValidationError(errs.SubtypeInvalidArgument, "--mode must be one of mini, flash, agentic, agentic_max").
+			WithParam("--mode")
+	}
 }
 
 func validateParseImageTaskID(taskID string) error {

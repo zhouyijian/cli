@@ -53,6 +53,7 @@ func TestWhiteboardParseImageDryRun_RequestShape(t *testing.T) {
 		"+parse-image",
 		"--whiteboard-token", "test-board",
 		"--image", "./diagram.png",
+		"--mode", "agentic_max",
 		"--client-token", "parse-token-12345",
 		"--overwrite",
 		"--dry-run",
@@ -71,8 +72,8 @@ func TestWhiteboardParseImageDryRun_RequestShape(t *testing.T) {
 	if !strings.Contains(out, "image_file") || !strings.Contains(out, "@./diagram.png") {
 		t.Fatalf("dry-run output should describe image_file form upload, got: %s", out)
 	}
-	if !strings.Contains(out, "parse-token-12345") || !strings.Contains(out, "overwrite") {
-		t.Fatalf("dry-run output should include client_token and overwrite, got: %s", out)
+	if !strings.Contains(out, "parse-token-12345") || !strings.Contains(out, "overwrite") || !strings.Contains(out, "agentic_max") {
+		t.Fatalf("dry-run output should include client_token, overwrite, and mode, got: %s", out)
 	}
 }
 
@@ -102,6 +103,7 @@ func TestWhiteboardParseImageExecute_PostsMultipartAndOutputsNextCommand(t *test
 		"+parse-image",
 		"--whiteboard-token", "test-board",
 		"--image", "./diagram.png",
+		"--mode", "agentic",
 		"--client-token", "parse-token-12345",
 		"--overwrite",
 		"--as", "user",
@@ -116,6 +118,9 @@ func TestWhiteboardParseImageExecute_PostsMultipartAndOutputsNextCommand(t *test
 	}
 	if got := body.Fields["overwrite"]; got != "true" {
 		t.Fatalf("overwrite = %q, want true", got)
+	}
+	if got := body.Fields["mode"]; got != "agentic" {
+		t.Fatalf("mode = %q, want agentic", got)
 	}
 	if got := string(body.Files["image_file"]); !strings.Contains(got, "PNG") {
 		t.Fatalf("image_file body = %q, want PNG bytes", got)
@@ -178,6 +183,18 @@ func TestWhiteboardParseImageValidateRejectsUnsupportedImage(t *testing.T) {
 		"--as", "user",
 	}, factory, stdout)
 	assertValidationParam(t, err, "--image", false)
+}
+
+func TestWhiteboardParseImageValidateRejectsInvalidMode(t *testing.T) {
+	factory, stdout, _ := parseImageTestFactory(t)
+	err := runParseImageShortcut(t, []string{
+		"+parse-image",
+		"--whiteboard-token", "test-board",
+		"--image", "./diagram.png",
+		"--mode", "slow",
+		"--as", "user",
+	}, factory, stdout)
+	assertValidationParam(t, err, "--mode", false)
 }
 
 func TestWhiteboardParseImageExecuteRejectsMissingTaskID(t *testing.T) {

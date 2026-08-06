@@ -25,6 +25,7 @@ func TestWhiteboardParseImageDryRun_RequestShapes(t *testing.T) {
 				"whiteboard", "+parse-image",
 				"--whiteboard-token", "wbcnParseImageDryRun",
 				"--image", "./input.png",
+				"--mode", "agentic",
 				"--client-token", "parse-token-12345",
 				"--overwrite",
 				"--dry-run",
@@ -50,6 +51,9 @@ func TestWhiteboardParseImageDryRun_RequestShapes(t *testing.T) {
 		}
 		if got := clie2e.DryRunGet(out, "api.0.body.overwrite").Bool(); !got {
 			t.Fatalf("body.overwrite=%v, want true\nstdout:\n%s", got, out)
+		}
+		if got := clie2e.DryRunGet(out, "api.0.body.mode").String(); got != "agentic" {
+			t.Fatalf("body.mode=%q, want agentic\nstdout:\n%s", got, out)
 		}
 	})
 

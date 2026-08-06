@@ -23,6 +23,7 @@ var wbParseImageFlags = []common.Flag{
 	{Name: "whiteboard-token", Desc: "whiteboard token of the target whiteboard. You need edit permission on the whiteboard.", Required: true},
 	{Name: "image", Desc: "local image path to parse into whiteboard content. Supports PNG, JPG, JPEG, GIF, and WEBP. Shorthand: -i.", Required: true},
 	{Name: "overwrite", Desc: "overwrite existing whiteboard content instead of appending. Default is false.", Required: false, Type: "bool"},
+	{Name: "mode", Desc: "Canvas Agent mode. Empty defaults to flash on the server.", Required: false, Enum: []string{parseImageModeMini, parseImageModeFlash, parseImageModeAgentic, parseImageModeAgenticMax}},
 	{Name: "client-token", Desc: "idempotent token for the submit request. Default is a generated UUID. Minimum length is 10 when provided.", Required: false},
 }
 
@@ -31,6 +32,9 @@ func wbParseImageValidate(_ context.Context, runtime *common.RuntimeContext) err
 		return err
 	}
 	if err := validateParseImageFilePath(runtime.Str("image")); err != nil {
+		return err
+	}
+	if _, err := normalizeParseImageMode(runtime.Str("mode")); err != nil {
 		return err
 	}
 	_, err := normalizeParseImageClientToken(runtime.Str("client-token"))
@@ -42,19 +46,31 @@ func wbParseImageDryRun(_ context.Context, runtime *common.RuntimeContext) *comm
 	if err != nil {
 		return common.NewDryRunAPI().Desc("invalid client token: " + err.Error())
 	}
+	mode, err := normalizeParseImageMode(runtime.Str("mode"))
+	if err != nil {
+		return common.NewDryRunAPI().Desc("invalid mode: " + err.Error())
+	}
+	body := map[string]interface{}{
+		"image_file":   "@" + runtime.Str("image"),
+		"overwrite":    runtime.Bool("overwrite"),
+		"client_token": clientToken,
+	}
+	if mode != "" {
+		body["mode"] = mode
+	}
 	return common.NewDryRunAPI().
 		POST(wbParseImageDryRunURL(runtime.Str("whiteboard-token"))).
-		Body(map[string]interface{}{
-			"image_file":   "@" + runtime.Str("image"),
-			"overwrite":    runtime.Bool("overwrite"),
-			"client_token": clientToken,
-		}).
+		Body(body).
 		Desc("submit one image for automatic parse and write into the whiteboard.")
 }
 
 func wbParseImageExecute(_ context.Context, runtime *common.RuntimeContext) error {
 	imagePath := runtime.Str("image")
 	clientToken, err := normalizeParseImageClientToken(runtime.Str("client-token"))
+	if err != nil {
+		return err
+	}
+	mode, err := normalizeParseImageMode(runtime.Str("mode"))
 	if err != nil {
 		return err
 	}
@@ -72,6 +88,9 @@ func wbParseImageExecute(_ context.Context, runtime *common.RuntimeContext) erro
 	fd := larkcore.NewFormdata()
 	fd.AddField("overwrite", strconv.FormatBool(runtime.Bool("overwrite")))
 	fd.AddField("client_token", clientToken)
+	if mode != "" {
+		fd.AddField("mode", mode)
+	}
 	fd.AddFile("image_file", f)
 
 	resp, err := runtime.DoAPI(&larkcore.ApiReq{
