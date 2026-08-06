@@ -11,15 +11,13 @@ var wbNodeUpdatePointSchema = whiteboardNodeUpdateSchema{
 }
 
 var wbNodeUpdateRichTextElementTextStyleSchema = whiteboardNodeUpdateSchema{
-	"font_weight":                nil,
-	"font_size":                  nil,
-	"text_color":                 nil,
-	"text_background_color":      nil,
-	"line_through":               nil,
-	"underline":                  nil,
-	"italic":                     nil,
-	"dark_text_color":            nil,
-	"dark_text_background_color": nil,
+	"font_weight":           nil,
+	"font_size":             nil,
+	"text_color":            nil,
+	"text_background_color": nil,
+	"line_through":          nil,
+	"underline":             nil,
+	"italic":                nil,
 }
 
 var wbNodeUpdateRichTextElementTextSchema = whiteboardNodeUpdateSchema{
@@ -64,76 +62,29 @@ var wbNodeUpdateRichTextSchema = whiteboardNodeUpdateSchema{
 }
 
 var wbNodeUpdateTextSchema = whiteboardNodeUpdateSchema{
-	"text":                                  nil,
-	"font_weight":                           nil,
-	"font_size":                             nil,
-	"horizontal_align":                      nil,
-	"vertical_align":                        nil,
-	"text_color":                            nil,
-	"text_background_color":                 nil,
-	"line_through":                          nil,
-	"underline":                             nil,
-	"italic":                                nil,
-	"angle":                                 nil,
-	"theme_text_color_code":                 nil,
-	"theme_text_background_color_code":      nil,
-	"rich_text":                             wbNodeUpdateRichTextSchema,
-	"text_color_type":                       nil,
-	"text_background_color_type":            nil,
-	"dark_text_color":                       nil,
-	"dark_text_background_color":            nil,
-	"dark_theme_text_color_code":            nil,
-	"dark_theme_text_background_color_code": nil,
-}
-
-var wbNodeUpdateBorderRadiusSchema = whiteboardNodeUpdateSchema{
-	"top_left":     nil,
-	"top_right":    nil,
-	"bottom_right": nil,
-	"bottom_left":  nil,
-}
-
-var wbNodeUpdateShadowSchema = whiteboardNodeUpdateSchema{
-	"color":    nil,
-	"blur":     nil,
-	"offset_x": nil,
-	"offset_y": nil,
-	"opacity":  nil,
-}
-
-var wbNodeUpdateGradientStopSchema = whiteboardNodeUpdateSchema{
-	"position": nil,
-	"color":    nil,
-}
-
-var wbNodeUpdateFillGradientSchema = whiteboardNodeUpdateSchema{
-	"type":             nil,
-	"handle_positions": wbNodeUpdatePointSchema,
-	"stops":            wbNodeUpdateGradientStopSchema,
+	"text":                  nil,
+	"font_weight":           nil,
+	"font_size":             nil,
+	"horizontal_align":      nil,
+	"vertical_align":        nil,
+	"text_color":            nil,
+	"text_background_color": nil,
+	"line_through":          nil,
+	"underline":             nil,
+	"italic":                nil,
+	"angle":                 nil,
+	"rich_text":             wbNodeUpdateRichTextSchema,
 }
 
 var wbNodeUpdateStyleSchema = whiteboardNodeUpdateSchema{
-	"fill_color":                   nil,
-	"fill_opacity":                 nil,
-	"border_width":                 nil,
-	"border_color":                 nil,
-	"border_opacity":               nil,
-	"h_flip":                       nil,
-	"v_flip":                       nil,
-	"border_style":                 nil,
-	"theme_fill_color_code":        nil,
-	"theme_border_color_code":      nil,
-	"fill_color_type":              nil,
-	"border_color_type":            nil,
-	"dark_fill_color":              nil,
-	"dark_border_color":            nil,
-	"dark_theme_fill_color_code":   nil,
-	"dark_theme_border_color_code": nil,
-	"border_dasharrays":            nil,
-	"border_radius":                wbNodeUpdateBorderRadiusSchema,
-	"shadow":                       wbNodeUpdateShadowSchema,
-	"inner_shadow":                 wbNodeUpdateShadowSchema,
-	"fill_gradient":                wbNodeUpdateFillGradientSchema,
+	"fill_color":     nil,
+	"fill_opacity":   nil,
+	"border_width":   nil,
+	"border_color":   nil,
+	"border_opacity": nil,
+	"h_flip":         nil,
+	"v_flip":         nil,
+	"border_style":   nil,
 }
 
 var wbNodeUpdatePieSchema = whiteboardNodeUpdateSchema{

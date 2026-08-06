@@ -29,9 +29,9 @@ lark-cli whiteboard +export \
 
 从返回的 `data.nodes[].id` 读取目标 node id。通常推荐构造只包含该 id 和待修改字段的最小输入；省略字段表示不修改，不要用默认值填充未指定字段。
 
-文本节点是例外：只改文案时，不要只发送 `text: { "text": "新文案" }` 后假设样式会被保留。先从 raw 中复制目标节点原有的 `text` 子对象，保留颜色、主题色、字号、行高、对齐、背景和 padding 等已有样式字段，只替换其中的文案字段。这样做的原因是文本样式常由多个嵌套字段共同决定；服务端可能归一化 `text_color_type` / theme code，raw 文本相等并不能证明 preview 中仍可读。
+文本节点是例外：只改文案时，不要只发送 `text: { "text": "新文案" }` 后假设样式会被保留。可以从 raw 中复制目标节点原有的 `text` 子对象作为起点，再替换其中的文案字段。CLI 会在发送前丢弃 update 不支持的 raw/create/internal 字段；你不需要在 prompt 中维护字段清单。raw 文本相等也不能证明 preview 中仍可读，所以文本替换后仍要看预览。
 
-如果已经持有 `+export --output-type raw` 或 nodes OpenAPI 返回的完整 raw node，优先整理成顶层 `{ "nodes": [...] }`。`+node-update` 在发送 `batch_update` 前会按 `WhiteboardNode` update schema 投影字段，保留 `id/type/parent_id/children/x/y/angle/width/height/text/style/image/composite_shape/connector/section/table/mind_map/locked/z_index/lifeline/paint/svg/sticky_note/mind_map_node/mind_map_root/syntax` 及其受支持的嵌套字段，丢弃 response-only 或内部扩展字段。
+如果已经持有 `+export --output-type raw` 或 nodes OpenAPI 返回的完整 raw node，优先整理成顶层 `{ "nodes": [...] }`。`+node-update` 在发送 `batch_update` 前会按 CLI 内置 update schema 投影字段，丢弃 response-only、raw/create-only 和内部扩展字段。构造 payload 时仍应尽量只表达本次显式修改，避免把整个画板快照当成 patch；但字段兼容性由 CLI sanitizer 承担，以 dry-run body 为准。
 
 兼容性只用于提高容错：如果上游误把未清洗的 raw/export 响应整体传给 `--source`，CLI 会尝试提取其中的 `data.nodes`。不要为了使用这个兼容能力主动构造 response envelope。
 
@@ -71,7 +71,6 @@ CLI 输入保持批量形态:
         "text": "新标题",
         "font_size": 18,
         "text_color": "#f1f5f9",
-        "text_color_type": 1,
         "horizontal_align": "center",
         "vertical_align": "mid"
       }
@@ -80,12 +79,12 @@ CLI 输入保持批量形态:
 }
 ```
 
-示例里的样式字段必须来自目标节点 raw，不要凭空套默认值。若目标节点原本使用 theme color 字段，保留 raw 中可由 CLI schema 发送的 theme/style 字段；如果 dry-run body 中这些字段被投影省略，写后必须依赖 preview 验证可读性，不能只依据 raw 文本判断成功。
+示例里的样式字段应来自目标节点 raw 或用户明确要求，不要凭空套默认值。写后必须依赖 preview 验证可读性，不能只依据 raw 文本判断成功。
 
 执行时所有节点保持在同一请求中:
 
 - `PUT /open-apis/board/v1/whiteboards/:whiteboard_id/nodes/batch_update`。
-- body 为 `{"nodes": [...]}`，节点内的 `id` 会保留；不属于 `WhiteboardNode` update schema 的字段会在 CLI 侧省略。
+- body 为 `{"nodes": [...]}`，节点内的 `id` 会保留；不属于 CLI update-safe schema 的字段会在 CLI 侧省略。
 - 如果输入误带 response envelope，只会提取 `data.nodes`；`code/msg/ok` 等 envelope 字段不会发送给 `batch_update`。
 - `--idempotent-token` 非空时，query 参数带 `client_token=<token>`。
 
@@ -121,8 +120,8 @@ lark-cli whiteboard +node-update \
 
 - 多节点更新前先使用 `--dry-run` 检查 `batch_update` method、URL、params 和 body。dry-run 只执行本地校验并打印请求预览，不请求画板 OpenAPI。
 - 请求预览、真实执行和重试复用同一 `node-updates.json`、幂等 token 和身份。
-- 用完整 raw node 写回时，以 dry-run body 为准确认哪些字段会真正发送；被省略的 response-only/internal 字段不会参与更新。
+- 用完整 raw node 写回时，以 dry-run body 为准确认 CLI sanitizer 后哪些字段会真正发送。dry-run 只证明本地请求形状，不证明服务端接受这些字段。
 - 文本替换写后必须导出 preview 检查可读性、层级和原容器样式；只看到 raw 文案变更不能声称完成。深色背景、强调卡片、标题和标签尤其要确认对比度没有被服务端主题色归一化破坏。
 - `batch_update` 写前会统一校验，但结构性字段可能分阶段应用。如服务端提示未完整完成，必须读回所有请求 node id 确认状态。
-- 真实执行失败时，只能修正同一 payload 中可验证的 schema 错误后重试一次，或停止并报告能力边界。遇到 `99992402 field validation failed` 时，同一批节点同一类 payload 只做一次结构调整：例如最小 `text` payload 失败，改成“复制原 `text` 子对象并只替换文案”；仍失败就停止，不要在 minimal/full/raw/envelope 之间多轮盲试。
+- 真实执行失败时，只能围绕同一目标节点和同一修改意图做一次可验证调整，或停止并报告能力边界。遇到 `99992402 field validation failed` 时，以 dry-run body 为准报告实际发送字段、node id、错误 code/log_id；仍失败就停止，不要在 minimal/full/raw/envelope 之间多轮盲试。
 - 不要在节点更新失败时自动回退到 `+node-create` 遮罩、SVG Edit、raw create 或 `+update --overwrite`。只有用户另行明确要求替换整个画板时，才能进入 replace workflow。

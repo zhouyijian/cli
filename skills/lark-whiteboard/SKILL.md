@@ -29,10 +29,10 @@ metadata:
 |---|---|
 | 查看、导出、获取源码或原始节点，不改变画板 | `read/export` → [`+export`](references/lark-whiteboard-export.md) |
 | 向已确认的空白画板写入第一批内容 | `initialize` → [创作 Workflow](references/lark-whiteboard-workflow.md#创作-workflow) |
-| 向非空画板只新增内容，不修改既有内容 | `append` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
-| 只修改既有内容 | `patch` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
-| 只删除既有内容 | `delete` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
-| 丢弃非空画板的全部旧内容并写入完整最终状态 | `replace` → [修改 Workflow](references/lark-whiteboard-workflow.md#修改-workflow) |
+| 向非空画板只新增内容，不修改既有内容 | `append` → [编辑 Workflow](references/lark-whiteboard-workflow.md#编辑-workflow) |
+| 只修改既有内容 | `patch` → [编辑 Workflow](references/lark-whiteboard-workflow.md#编辑-workflow) |
+| 只删除既有内容 | `delete` → [编辑 Workflow](references/lark-whiteboard-workflow.md#编辑-workflow) |
+| 丢弃非空画板的全部旧内容并写入完整最终状态 | `replace` → [编辑 Workflow](references/lark-whiteboard-workflow.md#编辑-workflow) |
 
 输入格式、输入是否就绪、目标是否已定位，只能缩小已经选定的操作如何执行，不能成为新的主路由。当前 Shortcut 的可执行边界、确认规则和禁止 fallback 统一由 [Workflow](references/lark-whiteboard-workflow.md) 决定。
 

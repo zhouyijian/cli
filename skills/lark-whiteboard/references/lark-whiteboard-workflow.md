@@ -1,4 +1,4 @@
-# 画板创作/修改工作流
+# 画板创作/编辑工作流
 
 本 Workflow 是 `lark-whiteboard` 唯一的远端写入编排入口。`SKILL.md` 只选择原子操作，`routes/*.md` 只生成和检查本地产物，Shortcut reference 只描述单个命令契约。
 
@@ -91,7 +91,7 @@ lark-cli whiteboard +export \
 
 当前接口没有 revision/CAS 条件，空白检查是 best-effort，不能声称原子保证。
 
-## 修改 Workflow
+## 编辑 Workflow
 
 ### append
 
@@ -114,11 +114,11 @@ Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须�
 已有节点的字段级修改使用 `+node-update`:
 
 1. 用 raw 唯一定位每个目标 node id；目标不唯一时停止并要求定位依据。
-2. 构造 `{ "nodes": [...] }`，每个 item 通常只包含 `id` 和待修改字段。省略字段表示不修改，不得用默认值填充。文本替换是例外：从目标 raw 复制原 `text` 子对象，保留颜色、主题色、字号、对齐、背景等样式字段，只替换文案。若上游直接给出未清洗的 `+export --output-type raw` 或 nodes OpenAPI 响应，也只能交给 `+node-update`：CLI 会容错提取 `data.nodes` 并投影到 `WhiteboardNode` update schema；不得主动构造 response envelope，也不得把同一 raw 交给 `+update raw` 冒充 patch。
-3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和 body。
+2. 构造 `{ "nodes": [...] }`，每个 item 至少包含 `id`，并只表达这次要改的内容。省略字段表示不修改，不得用默认值填充。可以把目标 raw node 或原 `text` 子对象作为输入起点，但字段兼容性由 `+node-update` 在发送前统一 sanitize；不要在 prompt 中维护字段清单。
+3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和被 CLI sanitizer 投影后的 body。dry-run body 才是实际会发给服务端的字段集合；如果目标改动被 sanitizer 丢弃，说明当前 CLI 不支持该字段，进入能力边界或改用可支持的显式字段。
 4. 复用同一 payload、幂等 token 和身份真实执行。
 5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。文本替换还必须导出 preview，确认文字可读、层级正确，并保留原容器的颜色和强调关系；服务端把颜色字段归一化为 theme code 时，以 preview 可读性为完成依据。
-6. 真实执行失败时，只能修正同一 payload 中可验证的 schema 错误后重试一次，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。遇到 `99992402 field validation failed` 时，同一批节点同一类 payload 只允许一次结构调整，仍失败就停止。
+6. 真实执行失败时，只能围绕同一目标节点和同一修改意图做一次可验证调整，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。遇到 `99992402 field validation failed` 时，以 dry-run body 为准报告 node id、实际发送字段、错误 code/log_id；不要在 minimal/full/raw/envelope 之间多轮盲试，也不要靠新增节点覆盖旧节点来伪装 patch 成功。
 
 对单一 Mermaid/PlantUML 代码图的源码重写仍属于 [Source Round-Trip](#source-round-trip)，它实际是 replace，不得用 `+node-update` 伪装。无法生成安全的节点级 payload 时进入[能力边界](#能力边界)，不自动转 replace。
 
@@ -162,6 +162,7 @@ replace 用完整最终 artifact 丢弃非空画板的全部旧状态：
 
 | 图表类型 | 模型家族 | 路径 |
 |---|---|---|
+| 当前要生成/追加的内容包含 @用户提及或图片/配图 | 任何身份 | [`../routes/dsl.md`](../routes/dsl.md) |
 | 思维导图、时序图、类图、饼图、甘特图 | 任何身份 | [`../routes/mermaid.md`](../routes/mermaid.md) |
 | 鱼骨图、金字塔图、流程图 | `Doubao` / `Seed` | [`../routes/dsl.md`](../routes/dsl.md) |
 | 其他图表 | `Claude` / `Gemini` / `GPT` / `GLM` / `Doubao` / `Seed` | [`../routes/svg.md`](../routes/svg.md) |
