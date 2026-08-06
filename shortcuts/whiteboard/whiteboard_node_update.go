@@ -18,7 +18,7 @@ var wbNodeUpdateScopes = []string{"board:whiteboard:node:update"}
 var wbNodeUpdateAuthTypes = []string{"user", "bot"}
 var wbNodeUpdateFlags = []common.Flag{
 	{Name: "whiteboard-token", Desc: "whiteboard token of the whiteboard to update nodes in. You need edit permission on the whiteboard.", Required: true},
-	{Name: "source", Desc: `JSON payload containing a non-empty "nodes" array. Each node must include "id"; for tolerance, unnormalized raw export/query responses with "data.nodes" are accepted and fields outside the update-safe schema are dropped before calling batch_update.`, Required: true, Input: []string{common.Stdin, common.File}},
+	{Name: "source", Desc: `JSON payload containing a non-empty "nodes" array. Each node must include "id"; for tolerance, unnormalized raw export/query responses with "data.nodes" are accepted, envelope fields are dropped, and valid WhiteboardNode fields are kept before calling batch_update.`, Required: true, Input: []string{common.Stdin, common.File}},
 	{Name: "idempotent-token", Desc: "idempotent token to make batch update requests retry-safe. Default is empty. Minimum length is 10.", Required: false},
 }
 
@@ -138,7 +138,7 @@ var WhiteboardNodeUpdate = common.Shortcut{
 	Flags:       wbNodeUpdateFlags,
 	Tips: []string{
 		`Prefer --source JSON with a non-empty top-level "nodes" array; each node must include "id".`,
-		`Execution sends one whiteboard.node batch_update request and keeps only fields supported by the update-safe schema.`,
+		`Execution sends one whiteboard.node batch_update request and preserves fields that belong to the WhiteboardNode contract.`,
 		`Unnormalized raw export/query responses are tolerated for robustness; response-only or internal extra fields are omitted from the update body.`,
 		`Use --idempotent-token for retry-safe batch_update requests; the token is sent as client_token only when provided.`,
 	},

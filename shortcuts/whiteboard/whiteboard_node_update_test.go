@@ -91,7 +91,7 @@ func TestWhiteboardNodeUpdateDryRun_RequestShape(t *testing.T) {
 	}
 }
 
-func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
+func TestWhiteboardNodeUpdateBody_PreservesV1DataTypeFields(t *testing.T) {
 	t.Parallel()
 
 	payload, err := parseWhiteboardNodeBatchPayload([]byte(`{"nodes":[{
@@ -112,6 +112,13 @@ func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
 			"content":"legacy alias must not be sent",
 			"font_size":14,
 			"theme_text_color_code":2,
+			"theme_text_background_color_code":3,
+			"text_color_type":1,
+			"text_background_color_type":0,
+			"dark_text_color":"#111111",
+			"dark_text_background_color":"#222222",
+			"dark_theme_text_color_code":4,
+			"dark_theme_text_background_color_code":5,
 			"rich_text":{
 				"paragraphs":[{
 					"paragraph_type":0,
@@ -119,7 +126,12 @@ func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
 						"element_type":0,
 						"text_element":{
 							"text":"hello",
-							"text_style":{"font_size":14,"extra_style":true}
+							"text_style":{
+								"font_size":14,
+								"dark_text_color":"#333333",
+								"dark_text_background_color":"#444444",
+								"extra_style":true
+							}
 						},
 						"extra_element":true
 					}],
@@ -130,8 +142,17 @@ func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
 		},
 		"style":{
 			"fill_color":"#ffffff",
+			"theme_fill_color_code":6,
+			"theme_border_color_code":7,
+			"fill_color_type":1,
+			"border_color_type":0,
 			"dark_fill_color":"#000000",
+			"dark_border_color":"#010101",
+			"dark_theme_fill_color_code":8,
+			"dark_theme_border_color_code":9,
+			"border_dasharrays":[4,2],
 			"border_radius":{"top_left":4,"unexpected":9},
+			"shadow":{"color":"#999999","blur":8,"offset_x":1,"offset_y":2,"opacity":0.5,"extra":1},
 			"fill_gradient":{
 				"type":"linear-gradient",
 				"handle_positions":[{"x":0,"y":0,"extra":1}],
@@ -160,19 +181,7 @@ func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
 		"created_at",
 		"unknown_top",
 		"content",
-		"theme_text_color_code",
-		"text_color_type",
-		"text_background_color_type",
-		"dark_text_color",
-		"dark_text_background_color",
 		"extra_style",
-		"fill_color_type",
-		"border_color_type",
-		"dark_fill_color",
-		"border_dasharrays",
-		"border_radius",
-		"shadow",
-		"fill_gradient",
 		"extra_rich_text",
 		"extra_paragraph",
 		"extra_element",
@@ -190,6 +199,28 @@ func TestWhiteboardNodeUpdateBody_DropsUnsupportedRawFields(t *testing.T) {
 		`"parent_id":"parentA"`,
 		`"text":"hello"`,
 		`"font_size":14`,
+		`"theme_text_color_code":2`,
+		`"theme_text_background_color_code":3`,
+		`"text_color_type":1`,
+		`"text_background_color_type":0`,
+		`"dark_text_color":"#111111"`,
+		`"dark_text_background_color":"#222222"`,
+		`"dark_theme_text_color_code":4`,
+		`"dark_theme_text_background_color_code":5`,
+		`"dark_text_color":"#333333"`,
+		`"dark_text_background_color":"#444444"`,
+		`"theme_fill_color_code":6`,
+		`"theme_border_color_code":7`,
+		`"fill_color_type":1`,
+		`"border_color_type":0`,
+		`"dark_fill_color":"#000000"`,
+		`"dark_border_color":"#010101"`,
+		`"dark_theme_fill_color_code":8`,
+		`"dark_theme_border_color_code":9`,
+		`"border_dasharrays":[4,2]`,
+		`"border_radius":{"top_left":4}`,
+		`"shadow":{"blur":8,"color":"#999999","offset_x":1,"offset_y":2,"opacity":0.5}`,
+		`"fill_gradient"`,
 		`"turning_points":[{"x":1,"y":2}]`,
 		`"syntax":{"code":"\u003csvg/\u003e","style_type":"default","syntax_type":"svg"}`,
 	} {

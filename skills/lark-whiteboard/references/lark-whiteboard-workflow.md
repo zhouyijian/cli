@@ -114,8 +114,8 @@ Mermaid、PlantUML 和 SVG 可直接使用对应 `--input_format`。DSL 必须�
 已有节点的字段级修改使用 `+node-update`:
 
 1. 用 raw 唯一定位每个目标 node id；目标不唯一时停止并要求定位依据。
-2. 构造 `{ "nodes": [...] }`，每个 item 至少包含 `id`，并只表达这次要改的内容。省略字段表示不修改，不得用默认值填充。可以把目标 raw node 或原 `text` 子对象作为输入起点，但字段兼容性由 `+node-update` 在发送前统一 sanitize；不要在 prompt 中维护字段清单。
-3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和被 CLI sanitizer 投影后的 body。dry-run body 才是实际会发给服务端的字段集合；如果目标改动被 sanitizer 丢弃，说明当前 CLI 不支持该字段，进入能力边界或改用可支持的显式字段。
+2. 构造 `{ "nodes": [...] }`，每个 item 至少包含 `id`，并只表达这次要改的内容。省略字段表示不修改，不得用默认值填充。可以把目标 raw node 或原 `text` 子对象作为输入起点；`+node-update` 按 `creation/whiteboard/openapi/v1_data_type.thrift` 的 `WhiteboardNode` 契约保留正式字段，并剥离 response envelope 和非 node 噪声。不要在 prompt 中维护字段清单。
+3. 对最终 payload 执行 `+node-update --dry-run`，检查 `batch_update` URL、params 和 body。dry-run body 才是实际会发给服务端的字段集合；如果目标改动没有出现在 dry-run body 中，说明 payload 结构或 CLI 投影有问题，不要继续真实写入。
 4. 复用同一 payload、幂等 token 和身份真实执行。
 5. 用 raw 读回所有目标 node id，验证显式修改字段已经变化，未请求字段不能因默认值被覆盖。如服务端提示未完整完成，不得只依据部分成功响应声称整批成功。文本替换还必须导出 preview，确认文字可读、层级正确，并保留原容器的颜色和强调关系；服务端把颜色字段归一化为 theme code 时，以 preview 可读性为完成依据。
 6. 真实执行失败时，只能围绕同一目标节点和同一修改意图做一次可验证调整，或停止并报告能力边界；不得自动改用 `+node-create` 遮罩旧节点、SVG Edit、raw create 或 `+update --overwrite`。遇到 `99992402 field validation failed` 时，以 dry-run body 为准报告 node id、实际发送字段、错误 code/log_id；不要在 minimal/full/raw/envelope 之间多轮盲试，也不要靠新增节点覆盖旧节点来伪装 patch 成功。
