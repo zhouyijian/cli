@@ -29,9 +29,9 @@ lark-cli whiteboard +export \
 
 从返回的 `data.nodes[].id` 读取目标 node id。通常推荐构造只包含该 id 和待修改字段的最小输入；省略字段表示不修改，不要用默认值填充未指定字段。
 
-文本节点是例外：只改文案时，不要只发送 `text: { "text": "新文案" }` 后假设样式会被保留。可以从 raw 中复制目标节点原有的 `text` 子对象作为起点，再替换其中的文案字段。CLI 会按 `creation/whiteboard/openapi/v1_data_type.thrift` 的 `WhiteboardNode` 契约保留正式字段；你不需要在 prompt 中维护字段清单。raw 文本相等也不能证明 preview 中仍可读，所以文本替换后仍要看预览。
+文本节点是例外：只改文案时，不要只发送 `text: { "text": "新文案" }` 后假设样式会被保留。可以从 raw 中复制目标节点原有的 `text` 子对象作为起点，再替换其中的文案字段。CLI 会按当前 whiteboard node OpenAPI 结构保留正式字段；不要在 prompt 中手工枚举可写字段。raw 文本相等也不能证明 preview 中仍可读，所以文本替换后仍要看预览。
 
-如果已经持有 `+export --output-type raw` 或 nodes OpenAPI 返回的完整 raw node，优先整理成顶层 `{ "nodes": [...] }`。`+node-update` 在发送 `batch_update` 前会剥离 response envelope、明显非 node 字段和无法映射到 `v1_data_type.WhiteboardNode` 的噪声；`v1_data_type` 正式字段不应被误删。构造 payload 时仍应尽量只表达本次显式修改，避免把整个画板快照当成 patch；最终以 dry-run body 为真实发送预览。
+如果已经持有 `+export --output-type raw` 或 nodes OpenAPI 返回的完整 raw node，优先整理成顶层 `{ "nodes": [...] }`。`+node-update` 在发送 `batch_update` 前会剥离 response envelope、明显非 node 字段和无法映射到 whiteboard node OpenAPI 结构的噪声；正式 node 字段不应被误删。构造 payload 时仍应尽量只表达本次显式修改，避免把整个画板快照当成 patch；最终以 dry-run body 为真实发送预览。
 
 兼容性只用于提高容错：如果上游误把未清洗的 raw/export 响应整体传给 `--source`，CLI 会尝试提取其中的 `data.nodes`。不要为了使用这个兼容能力主动构造 response envelope。
 
