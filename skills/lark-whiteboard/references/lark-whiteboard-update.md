@@ -1,6 +1,6 @@
 # whiteboard +update
 
-> **前置条件：** 先阅读 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则，并按目标资源权限确定 `<identity>` 为 `user` 或 `bot`。同一次读取、请求预览、写入和验证必须复用该身份。
+> **前置条件：** 若本操作链尚未读取 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md)，先读取并确定 `<identity>` 为 `user` 或 `bot`；否则复用已确定身份。同一次读取、请求预览、写入和验证必须保持同一身份。
 
 `+update` 向画板**创建**输入内容，是否清空旧内容由 `--overwrite` 决定：
 

@@ -1,6 +1,6 @@
 # whiteboard +node-delete
 
-> **前置条件:** 先阅读 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。命令同时支持 `user` 和 `bot`；按目标资源权限确定 `<identity>`，并在读取、请求预览、写入和验证中保持一致。
+> **前置条件:** 若本操作链尚未读取 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md)，先读取并确定 `<identity>`；否则复用已确定身份。命令同时支持 `user` 和 `bot`，并在读取、请求预览、写入和验证中保持一致。
 
 按 node id 删除已有节点。这是高风险写操作，只能删除已经确认的目标节点。
 
