@@ -265,12 +265,7 @@ func deleteWikiNodeAndVerify(ctx context.Context, spaceID, nodeToken, objType st
 		}
 	}
 
-	deleteToken := originalNodeToken
-	if node.Get("node_type").String() == "origin" {
-		if objToken := node.Get("obj_token").String(); objToken != "" {
-			deleteToken = objToken
-		}
-	}
+	deleteToken, objType := wikiDeleteTarget(node, originalNodeToken, objType)
 
 	deleteResult, deleteErr := clie2e.RunCmdWithRetry(ctx, clie2e.Request{
 		Args:      []string{"api", "delete", "/open-apis/wiki/v2/spaces/" + spaceID + "/nodes/" + deleteToken},
@@ -295,6 +290,58 @@ func deleteWikiNodeAndVerify(ctx context.Context, spaceID, nodeToken, objType st
 		return deleteResult, err
 	}
 	return deleteResult, nil
+}
+
+// wikiDeleteTarget returns the token kind expected by the delete-node API.
+// Origin nodes are addressed by their backing object token and object type;
+// shortcut nodes are addressed by their Wiki node token and obj_type=wiki.
+func wikiDeleteTarget(node gjson.Result, nodeToken, fallbackObjType string) (string, string) {
+	if node.Get("node_type").String() == "shortcut" {
+		return nodeToken, "wiki"
+	}
+	if objToken := node.Get("obj_token").String(); objToken != "" {
+		nodeToken = objToken
+	}
+	if objType := node.Get("obj_type").String(); objType != "" {
+		fallbackObjType = objType
+	}
+	return nodeToken, fallbackObjType
+}
+
+func TestWikiDeleteTarget(t *testing.T) {
+	tests := []struct {
+		name        string
+		nodeJSON    string
+		nodeToken   string
+		objType     string
+		wantToken   string
+		wantObjType string
+	}{
+		{
+			name:        "origin uses backing object",
+			nodeJSON:    `{"node_type":"origin","node_token":"wikcnOrigin","obj_token":"docxOrigin","obj_type":"docx"}`,
+			nodeToken:   "wikcnOrigin",
+			objType:     "docx",
+			wantToken:   "docxOrigin",
+			wantObjType: "docx",
+		},
+		{
+			name:        "shortcut uses wiki node",
+			nodeJSON:    `{"node_type":"shortcut","node_token":"wikcnShortcut","obj_token":"boxcnFile","obj_type":"file"}`,
+			nodeToken:   "wikcnShortcut",
+			objType:     "file",
+			wantToken:   "wikcnShortcut",
+			wantObjType: "wiki",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotToken, gotObjType := wikiDeleteTarget(gjson.Parse(tt.nodeJSON), tt.nodeToken, tt.objType)
+			require.Equal(t, tt.wantToken, gotToken)
+			require.Equal(t, tt.wantObjType, gotObjType)
+		})
+	}
 }
 
 func listWikiNodeChildren(ctx context.Context, spaceID, parentNodeToken string) ([]wikiNodeInfo, *clie2e.Result, error) {
