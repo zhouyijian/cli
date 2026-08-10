@@ -37,9 +37,21 @@ const (
 	Shutdown
 )
 
-// LifecycleContext is passed to LifecycleHandler. Err is the error from
-// the preceding command (when Event == Shutdown after a failed RunE);
-// otherwise nil.
+// LifecycleContext is passed to LifecycleHandler. When Event == Shutdown, Err
+// is the failure the invocation ended with — from the command itself, or from
+// the framework rejecting the command line before any command ran; otherwise
+// nil.
+//
+// Err is a snapshot: it carries the same Category and Subtype the CLI writes
+// to its stderr envelope, and writing to it does not change what the user
+// sees. Read it with errs.ProblemOf and check the boolean — two exit-code-only
+// signals carry no Problem and write no envelope, because their result is
+// already on stdout: a partial failure, and a bare predicate exit.
+//
+// Some failures end the process before this event can be emitted, so a
+// handler must not be relied on as an exhaustive audit trail: bootstrap
+// rejections, a plugin whose own installation or Startup handler failed, and
+// shell-completion invocations all exit without a Shutdown event.
 type LifecycleContext struct {
 	Event LifecycleEvent
 	Err   error

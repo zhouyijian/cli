@@ -365,6 +365,12 @@ func buildInternalWithConfig(ctx context.Context, inv cmdutil.InvocationContext,
 		return finalizeFailedBuild(runtime, rootCmd)
 	}
 
+	// Wrap Args validators and mark command-body entry before plugin hooks go
+	// on, so the entry mark sits directly on the real body: a hook that
+	// aborts dispatch never reaches it, which is what keeps a policy denial
+	// distinguishable from a command that actually ran.
+	instrumentErrorStages(rootCmd)
+
 	// Install hooks only on business commands. The concealment-specific help
 	// command is attached afterwards, preserving Cobra's historical contract
 	// that help is not observed or wrapped by plugins.

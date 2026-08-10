@@ -283,7 +283,12 @@ func (f *Factory) RequireBuiltinCredentialProvider(ctx context.Context, command 
 	}
 	provName, err := f.Credential.ActiveExtensionProviderName(ctx)
 	if err != nil {
-		return err
+		// This runs in PersistentPreRunE, ahead of the command body. Typing it
+		// here keeps the root dispatcher's stage judgment sound: an untyped
+		// error escaping from before the body would be read as a mistake in
+		// what the user typed, which a provider lookup failure is not.
+		return errs.NewInternalError(errs.SubtypeUnknown,
+			"cannot determine the active credential provider: %v", err).WithCause(err)
 	}
 	if provName == "" {
 		return nil
